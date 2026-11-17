@@ -9,7 +9,7 @@ from fastapi.templating import Jinja2Templates
 from starlette.requests import Request
 
 from app.db import DB_PATH, initialize_database
-from app.workflow import attempt_action, create_request, get_permit, get_permit_history, list_permits, list_users
+from app.workflow import attempt_action, create_request, get_permit, get_permit_history, list_permits, list_users, review_permit
 
 
 @asynccontextmanager
@@ -77,6 +77,23 @@ async def route_approve(permit_id: int, payload: dict):
     if result["success"]:
         return result
     return JSONResponse(status_code=400, content={"ok": False, "error": result["error"]})
+
+
+@app.post("/api/permits/{permit_id}/review")
+async def route_review(permit_id: int, payload: dict):
+    user_id = str(payload.get("user_id", "")).strip()
+    decision = str(payload.get("decision", "")).strip().upper()
+    comment = payload.get("comment", "")
+    if not user_id or not decision or not isinstance(comment, str):
+        return JSONResponse(
+            status_code=400,
+            content={"ok": False, "error": {"code": "INVALID_REQUEST", "message": "A user_id, decision, and text comment are required."}},
+        )
+    result = review_permit(permit_id, user_id, decision, comment)
+    if result["success"]:
+        return result
+    status_code = 404 if result["error"]["code"] == "NOT_FOUND" else 400
+    return JSONResponse(status_code=status_code, content={"ok": False, "error": result["error"]})
 
 
 @app.post("/api/permits/{permit_id}/close")

@@ -43,10 +43,12 @@ All data is synthetic. The sites, people and work are fictional. The [data dicti
 | From | Action | To | Who can do it |
 |---|---|---|---|
 | (new) | Request | `REQUESTED` | A `REQUESTER` assigned to the site |
-| `REQUESTED` | Approve | `APPROVED` | The site's `AREA_AUTHORITY` |
+| `REQUESTED` | Review | `REVIEWED` | An active `HSE_OFFICER` assigned to the site |
+| `REQUESTED` | Reject with a reason | `REJECTED` | An active `HSE_OFFICER` assigned to the site |
+| `REVIEWED` | Approve | `APPROVED` | The site's `AREA_AUTHORITY` |
 | `APPROVED` | Close, once the work is done and the site is safe | `CLOSED` | The site's `AREA_AUTHORITY` |
 
-Any other action is refused. HSE officers and viewers can see permits but can't change them.
+HSE rejection is terminal. Any other action is refused. Viewers can see permits but can't change them.
 
 **The checks**
 
@@ -76,8 +78,8 @@ Every challenge has the same five deliverables, sized for a team of 5–8 in 1.5
 
 - [x] **Database:** load the users, roles, sites and permit types into SQLite, handle the issues in [Things to know](data/README.md#things-to-know), and store permits and their append-only history.
 - [x] **Back end:** apply the workflow and three checks to each permit action; refusals include their check ID and explanation.
-- [x] **API:** request, approve, close, list permits, and read permit history; refusals return the documented check and reason.
-- [x] **Front end:** request and close permits; review full permit details before approving; filter the permit register, view history, show eligible site approvers, and present management charts through the API.
+- [x] **API:** request, review/reject, approve, close, list permits, and read permit history; refusals return the documented check and reason.
+- [x] **Front end:** request, HSE review/reject, approve, and close permits; show eligible reviewers and approvers, full workflow steps and permit details; filter the register, view history, and present management charts through the API.
 - [x] **Tests:** cover each check, transitions, read/action endpoints, multi-role users, and `ALL` site access.
 
 The [Copilot starter kit](#-your-copilot-starter-kit) has a skill for the database, `/data-import`, and one for the API, `/api-endpoint`.
@@ -89,7 +91,7 @@ Use any language, framework and database, as long as it runs locally from your R
 - **Team name:** AI Force 8
 - **Team members:** Abhishek, Ahmad Ali, Mina, Sadiq, Tamer, Henawy, Imran, Khalid.
 - **Stack:** Python 3.12, FastAPI, SQLite, pytest; the UI is server-rendered HTML with browser JavaScript.
-- **Dashboard:** requester-linked site choices, a read-only list of active eligible area authorities (excluding the requester), management totals, weekly/monthly permit counts by site, requester distribution, and searchable/sortable permit and history views. Permit approvals are initiated from a details view showing the full work scope, schedule, hazards, and controls.
+- **Dashboard:** requester-linked site choices, a top-bar role filter for switching among eligible demo users, management totals for review/approval outcomes, weekly/monthly permit counts by site, requester distribution, and searchable/sortable permit and history views. The permit details view shows eligible HSE reviewers and Area Authority approvers, names each workflow step, and lets the HSE reviewer mark a request Reviewed or Reject it with a required reason before authority approval. Displayed permit and history times use `DD/MM/YYYY HH:MM`.
 
 ### Run it
 
@@ -120,10 +122,10 @@ python -m pytest -q
 | `SITE_ASSIGNMENT` | `app/workflow.py` | Request and approval denials are covered by `test_request_requires_requester_role_and_site_assignment` and `test_approval_checks_site_assignment_and_normalizes_role_formatting`. |
 | `SEPARATION_OF_DUTIES` | `app/workflow.py` | `test_self_approval_is_refused_and_recorded_in_history` |
 | Site `ALL` access and normalized roles | `app/workflow.py` | `test_requester_with_all_site_access_can_request_any_site` and `test_approval_checks_site_assignment_and_normalizes_role_formatting` |
-| Valid and invalid workflow transitions | `app/workflow.py` | `test_request_approve_and_close_permit` and `test_invalid_transition_is_refused_and_recorded_in_history` |
+| Valid and invalid workflow transitions | `app/workflow.py` | `test_request_review_approve_and_close_permit`, `test_hse_review_and_rejection_require_role_site_and_reason`, and `test_invalid_transition_is_refused_and_recorded_in_history` |
 | Append-only history | `app/db.py`, `app/workflow.py` | `test_permit_history_cannot_be_updated_or_deleted`; refused actions are checked by `test_self_approval_is_refused_and_recorded_in_history`. |
 | Audit identity and Kuwait timestamps | `app/workflow.py`, `app/db.py` | Lifecycle and read-endpoint tests verify the acting role, approver, and UTC+03:00 timestamps. |
-| Read and action API endpoints | `app/main.py` | `test_read_endpoints_return_users_permits_and_history`, `test_get_permit_detail_contains_review_fields`, and the workflow request/approve/close tests. |
+| Read and action API endpoints | `app/main.py` | `test_read_endpoints_return_users_permits_and_history`, `test_get_permit_detail_contains_review_fields`, `test_review_endpoint_rejects_invalid_decisions_and_missing_permits`, and workflow lifecycle tests. |
 | Invalid permit type and time range | `app/workflow.py` | `test_unknown_permit_type_and_invalid_date_are_rejected` |
 
 ### Copilot retrospective

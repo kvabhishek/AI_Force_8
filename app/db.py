@@ -232,6 +232,7 @@ def initialize_database() -> None:
                     "hazards": "Flammable gas; sparks; hot surfaces",
                     "controls": "Drain and purge the line; gas test; fire watch",
                     "status": "APPROVED",
+                    "reviewed_by": "U-010",
                     "approved_by": "U-005",
                 },
             ]
@@ -262,27 +263,34 @@ def initialize_database() -> None:
                     ),
                 )
                 permit_id = conn.execute("SELECT permit_id FROM permits WHERE permit_ref = ?", (row["permit_ref"],)).fetchone()[0]
-                action = "REQUEST" if row["status"] == "REQUESTED" else "APPROVE"
-                actor_user_id = row.get("approved_by", row["requested_by"])
-                from_state = "NEW" if row["status"] == "REQUESTED" else "REQUESTED"
-                to_state = row["status"]
-                conn.execute(
-                    """
-                    INSERT INTO permit_history (
-                        permit_id, action, from_state, to_state, user_id, actor_role, timestamp, success, check_id, comment
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, 1, 'WORKFLOW', ?)
-                    """,
-                    (
-                        permit_id,
-                        action,
-                        from_state,
-                        to_state,
-                        actor_user_id,
-                        "REQUESTER" if action == "REQUEST" else "AREA_AUTHORITY",
-                        seeded_at,
-                        f"Seeded {row['status'].lower()} permit",
-                    ),
-                )
+                history_events = [
+                    ("REQUEST", "NEW", "REQUESTED", row["requested_by"], "REQUESTER", "Permit requested"),
+                ]
+                if row["status"] in {"REVIEWED", "APPROVED", "CLOSED", "REJECTED"}:
+                    history_events.append(
+                        ("REVIEW", "REQUESTED", "REVIEWED", row.get("reviewed_by", "U-010"), "HSE_OFFICER", "Permit reviewed by HSE")
+                    )
+                if row["status"] in {"APPROVED", "CLOSED"}:
+                    history_events.append(
+                        ("APPROVE", "REVIEWED", "APPROVED", row["approved_by"], "AREA_AUTHORITY", "Permit approved by area authority")
+                    )
+                if row["status"] == "REJECTED":
+                    history_events.append(
+                        ("REJECT", "REQUESTED", "REJECTED", row.get("reviewed_by", "U-010"), "HSE_OFFICER", row["rejection_reason"])
+                    )
+                if row["status"] == "CLOSED":
+                    history_events.append(
+                        ("CLOSE", "APPROVED", "CLOSED", row["closed_by"], "AREA_AUTHORITY", "Work completed and permit closed")
+                    )
+                for action, from_state, to_state, actor_user_id, actor_role, comment in history_events:
+                    conn.execute(
+                        """
+                        INSERT INTO permit_history (
+                            permit_id, action, from_state, to_state, user_id, actor_role, timestamp, success, check_id, comment
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, 1, 'WORKFLOW', ?)
+                        """,
+                        (permit_id, action, from_state, to_state, actor_user_id, actor_role, seeded_at, comment),
+                    )
 
 
 def fetch_all(query: str, params: Iterable[Any] = ()) -> list[sqlite3.Row]:

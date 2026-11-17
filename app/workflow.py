@@ -6,8 +6,8 @@ from typing import Any
 
 from app.db import connect_db, kuwait_now_iso, normalize_roles, normalize_sites
 
-VALID_ACTIONS = {"REQUEST", "APPROVE", "CLOSE"}
-STATE_SEQUENCE = {"NEW": "REQUESTED", "REQUESTED": "APPROVED", "APPROVED": "CLOSED"}
+VALID_ACTIONS = {"REQUEST", "REVIEW", "REJECT", "APPROVE", "CLOSE"}
+STATE_SEQUENCE = {"NEW": "REQUESTED", "REQUESTED": "REVIEWED", "REVIEWED": "APPROVED", "APPROVED": "CLOSED"}
 
 
 def _normalize_role(raw: str | None) -> str:
@@ -217,6 +217,64 @@ def create_request(payload: dict[str, Any]) -> dict[str, Any]:
         return {"success": True, "permit": _serialize_permit(row)}
 
 
+def review_permit(permit_id: int, user_id: str, decision: str, comment: str = "") -> dict[str, Any]:
+    decision_name = decision.strip().upper()
+    if decision_name not in {"REVIEWED", "REJECT"}:
+        return {"success": False, "error": {"code": "INVALID_REQUEST", "message": "decision must be REVIEWED or REJECT."}}
+
+    action_name = "REVIEW" if decision_name == "REVIEWED" else "REJECT"
+    target_status = "REVIEWED" if decision_name == "REVIEWED" else "REJECTED"
+    with connect_db() as conn:
+        permit = _permit_exists(conn, permit_id)
+        if permit is None:
+            return {"success": False, "error": {"code": "NOT_FOUND", "message": f"Permit {permit_id} does not exist."}}
+
+        user = conn.execute("SELECT * FROM users WHERE user_id = ?", (user_id,)).fetchone()
+        actor_role = _actor_role(user, "HSE_OFFICER")
+        current_status = permit["status"]
+        if current_status != "REQUESTED":
+            message = f"Permit {permit_id} is in {current_status}, so it cannot be reviewed or rejected."
+            _record_history(conn, permit_id, action_name, current_status, current_status, user_id, actor_role, False, "INVALID_TRANSITION", message)
+            return {"success": False, "error": {"code": "INVALID_TRANSITION", "message": message}}
+        if not _is_active_user(user):
+            message = f"{user_id} is not an active user."
+            _record_history(conn, permit_id, action_name, current_status, current_status, user_id, actor_role, False, "ROLE_REQUIRED", message)
+            return {"success": False, "error": {"code": "ROLE_REQUIRED", "message": message}}
+        if not _has_role(user, "HSE_OFFICER"):
+            message = f"{user_id} does not hold the HSE_OFFICER role."
+            _record_history(conn, permit_id, action_name, current_status, current_status, user_id, actor_role, False, "ROLE_REQUIRED", message)
+            return {"success": False, "error": {"code": "ROLE_REQUIRED", "message": message}}
+        if not _is_user_for_site(user, permit["site_id"]):
+            message = f"{user_id} is not assigned to site {permit['site_id']}."
+            _record_history(conn, permit_id, action_name, current_status, current_status, user_id, actor_role, False, "SITE_ASSIGNMENT", message)
+            return {"success": False, "error": {"code": "SITE_ASSIGNMENT", "message": message}}
+
+        review_comment = comment.strip()
+        if decision_name == "REJECT" and not review_comment:
+            message = "A rejection reason is required."
+            _record_history(conn, permit_id, action_name, current_status, current_status, user_id, actor_role, False, "INVALID_REQUEST", message)
+            return {"success": False, "error": {"code": "INVALID_REQUEST", "message": message}}
+
+        conn.execute(
+            "UPDATE permits SET status = ?, updated_at = ? WHERE permit_id = ?",
+            (target_status, kuwait_now_iso(), permit_id),
+        )
+        _record_history(
+            conn,
+            permit_id,
+            action_name,
+            current_status,
+            target_status,
+            user_id,
+            actor_role,
+            True,
+            "WORKFLOW",
+            review_comment or "Permit marked reviewed.",
+        )
+        row = conn.execute("SELECT * FROM permits WHERE permit_id = ?", (permit_id,)).fetchone()
+        return {"success": True, "permit": _serialize_permit(row)}
+
+
 def attempt_action(permit_id: int, action: str, user_id: str, comment: str = "") -> dict[str, Any]:
     action_name = action.upper()
     if action_name not in {"APPROVE", "CLOSE"}:
@@ -230,8 +288,8 @@ def attempt_action(permit_id: int, action: str, user_id: str, comment: str = "")
         user = conn.execute("SELECT * FROM users WHERE user_id = ?", (user_id,)).fetchone()
         actor_role = _actor_role(user, "AREA_AUTHORITY")
         current_status = permit["status"]
-        if action_name == "APPROVE" and current_status != "REQUESTED":
-            message = f"Permit {permit_id} is in {current_status}, so it cannot be approved."
+        if action_name == "APPROVE" and current_status != "REVIEWED":
+            message = f"Permit {permit_id} is in {current_status}, so it cannot be approved before HSE review."
             _record_history(conn, permit_id, action_name, current_status, current_status, user_id, actor_role, False, "INVALID_TRANSITION", message)
             return {"success": False, "error": {"code": "INVALID_TRANSITION", "message": message}}
         if action_name == "CLOSE" and current_status != "APPROVED":

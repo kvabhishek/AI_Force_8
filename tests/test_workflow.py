@@ -16,7 +16,14 @@ def setup_function() -> None:
         conn.execute("UPDATE users SET sites = 'GC-01|GC-02' WHERE user_id = 'U-001'")
 
 
-def test_request_approve_and_close_permit():
+def review_request(permit_id: int, decision: str = "REVIEWED", comment: str = "HSE review complete", user_id: str = "U-010"):
+    return client.post(
+        f"/api/permits/{permit_id}/review",
+        json={"user_id": user_id, "decision": decision, "comment": comment},
+    )
+
+
+def test_request_review_approve_and_close_permit():
     response = client.post(
         "/api/permits/request",
         json={
@@ -33,6 +40,10 @@ def test_request_approve_and_close_permit():
     assert response.status_code == 200, response.text
     permit = response.json()["permit"]
     assert permit["status"] == "REQUESTED"
+
+    review = review_request(permit["permit_id"])
+    assert review.status_code == 200, review.text
+    assert review.json()["permit"]["status"] == "REVIEWED"
 
     approve = client.post(
         f"/api/permits/{permit['permit_id']}/approve",
@@ -52,6 +63,7 @@ def test_request_approve_and_close_permit():
 
     history = client.get(f"/api/permits/{permit['permit_id']}/history")
     assert history.status_code == 200
+    assert any(item["action"] == "REVIEW" and item["success"] for item in history.json()["history"])
     assert any(item["action"] == "APPROVE" and item["success"] for item in history.json()["history"])
     assert all(
         datetime.fromisoformat(item["timestamp"]).utcoffset() == timedelta(hours=3)
@@ -74,6 +86,7 @@ def test_self_approval_is_refused_and_recorded_in_history():
         },
     )
     permit = response.json()["permit"]
+    assert review_request(permit["permit_id"]).status_code == 200
     reject = client.post(
         f"/api/permits/{permit['permit_id']}/approve",
         json={"user_id": "U-007", "comment": "Self-approval attempt"},
@@ -137,6 +150,8 @@ def test_site_without_active_area_authority_is_rejected():
     )
     assert request.status_code == 200, request.text
     permit = request.json()["permit"]
+    reviewed = review_request(permit["permit_id"])
+    assert reviewed.status_code == 200, reviewed.text
 
     reject = client.post(
         f"/api/permits/{permit['permit_id']}/approve",
@@ -161,6 +176,7 @@ def test_user_with_multiple_roles_can_act_in_the_required_role():
         },
     )
     permit = request.json()["permit"]
+    assert review_request(permit["permit_id"]).status_code == 200
     approve = client.post(
         f"/api/permits/{permit['permit_id']}/approve",
         json={"user_id": "U-015", "comment": "Area authority with combined roles"},
@@ -221,6 +237,8 @@ def test_requester_with_all_site_access_can_request_any_site():
 
 
 def test_approval_checks_site_assignment_and_normalizes_role_formatting():
+    assert review_request(2).status_code == 200
+
     wrong_role = client.post(
         "/api/permits/2/approve",
         json={"user_id": "U-001", "comment": "Requester approval attempt"},
@@ -243,6 +261,44 @@ def test_approval_checks_site_assignment_and_normalizes_role_formatting():
     )
     assert approved.status_code == 200, approved.text
     assert approved.json()["permit"]["status"] == "APPROVED"
+
+
+def test_hse_review_and_rejection_require_role_site_and_reason():
+    wrong_role = review_request(1, user_id="U-004")
+    assert wrong_role.status_code == 400
+    assert wrong_role.json()["error"]["code"] == "ROLE_REQUIRED"
+
+    wrong_site = review_request(1, user_id="U-015")
+    assert wrong_site.status_code == 400
+    assert wrong_site.json()["error"]["code"] == "SITE_ASSIGNMENT"
+
+    missing_reason = review_request(1, decision="REJECT", comment="")
+    assert missing_reason.status_code == 400
+    assert missing_reason.json()["error"]["code"] == "INVALID_REQUEST"
+
+    rejected = review_request(1, decision="REJECT", comment="Required gas test evidence is missing.")
+    assert rejected.status_code == 200, rejected.text
+    assert rejected.json()["permit"]["status"] == "REJECTED"
+    rejection_history = client.get("/api/permits/1/history").json()["history"][-1]
+    assert rejection_history["action"] == "REJECT"
+    assert rejection_history["comment"] == "Required gas test evidence is missing."
+
+    approval_after_rejection = client.post(
+        "/api/permits/1/approve",
+        json={"user_id": "U-004", "comment": "Approval after rejection"},
+    )
+    assert approval_after_rejection.status_code == 400
+    assert approval_after_rejection.json()["error"]["code"] == "INVALID_TRANSITION"
+
+
+def test_review_endpoint_rejects_invalid_decisions_and_missing_permits():
+    invalid_decision = review_request(1, decision="APPROVE")
+    assert invalid_decision.status_code == 400
+    assert invalid_decision.json()["error"]["code"] == "INVALID_REQUEST"
+
+    missing_permit = review_request(999)
+    assert missing_permit.status_code == 404
+    assert missing_permit.json()["error"]["code"] == "NOT_FOUND"
 
 
 def test_inactive_users_cannot_request_or_close_permits():
@@ -299,11 +355,15 @@ def test_read_endpoints_return_users_permits_and_history():
     assert permits.json()["count"] == 3
     assert permit.status_code == 200
     assert permit.json()["permit_ref"] == "P-1001"
+    assert permits.json()["permits"][0]["status"] == "REQUESTED"
     assert history.status_code == 200
     assert history.json()["history"]
     approved_seed_history = client.get("/api/permits/3/history").json()["history"][-1]
     assert approved_seed_history["user_id"] == "U-005"
     assert approved_seed_history["actor_role"] == "AREA_AUTHORITY"
+    approved_seed_review = client.get("/api/permits/3/history").json()["history"][-2]
+    assert approved_seed_review["action"] == "REVIEW"
+    assert approved_seed_review["actor_role"] == "HSE_OFFICER"
     assert client.get("/api/permits/999/history").status_code == 404
 
 

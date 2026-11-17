@@ -245,7 +245,7 @@
       .stats-heading .section-note { margin: 0 0 2px; }
       .stats-grid {
         display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
+        grid-template-columns: repeat(6, minmax(0, 1fr));
         gap: 14px;
       }
       .stat-card {
@@ -551,6 +551,79 @@
         justify-content: flex-end;
         margin-top: 18px;
       }
+      .workflow-stepper {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+        margin: 0 0 18px;
+        padding: 0;
+        list-style: none;
+      }
+      .workflow-step {
+        min-width: 0;
+        padding: 12px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: #f7f9fb;
+        color: var(--muted);
+      }
+      .workflow-step.complete {
+        border-color: #cfe4df;
+        background: #eaf5f2;
+        color: var(--accent-dark);
+      }
+      .workflow-step.current {
+        border-color: #88c7b7;
+        background: #f0faf7;
+        color: var(--accent-dark);
+        box-shadow: 0 0 0 2px rgba(18, 107, 96, 0.08);
+      }
+      .workflow-step.rejected {
+        border-color: #e8caca;
+        background: #fbefef;
+        color: var(--bad);
+      }
+      .workflow-step-index {
+        display: block;
+        margin-bottom: 5px;
+        font-size: 10px;
+        font-weight: 800;
+        text-transform: uppercase;
+      }
+      .workflow-step-name {
+        font-size: 12px;
+        font-weight: 700;
+        line-height: 1.35;
+      }
+      .workflow-status {
+        display: grid;
+        justify-items: start;
+        gap: 6px;
+      }
+      .workflow-step-name-current {
+        color: var(--muted);
+        font-size: 11px;
+      }
+      .detail-review-actions {
+        display: grid;
+        grid-template-columns: minmax(150px, auto) minmax(260px, 1fr);
+        align-items: end;
+        gap: 16px;
+        margin-top: 18px;
+      }
+      .reject-control {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: end;
+        gap: 10px;
+      }
+      .reject-control label { grid-column: 1 / -1; }
+      .reject-control textarea { min-height: 64px; }
+      .detail-empty-action {
+        margin-top: 18px;
+        color: var(--muted);
+        font-size: 13px;
+      }
       .status {
         display: inline-block;
         padding: 5px 9px;
@@ -560,8 +633,10 @@
         letter-spacing: 0.03em;
       }
       .status.REQUESTED { background: #eaf2ff; color: #2857a4; }
+      .status.REVIEWED { background: #fff3dc; color: #86590e; }
       .status.APPROVED { background: #e8f5ed; color: var(--good); }
       .status.CLOSED { background: #edf0f2; color: #465563; }
+      .status.REJECTED { background: #fbefef; color: var(--bad); }
       .actions { display: flex; gap: 7px; }
       .history-box {
         background: #fbfcfd;
@@ -596,9 +671,9 @@
         .brand-copy small { display: none; }
         .brand-copy strong { font-size: 15px; }
         .brand-symbol { width: 36px; height: 36px; }
-        .account { gap: 7px; }
+        .account { max-width: 200px; gap: 7px; }
         .user-avatar, .account-meta { display: none; }
-        .account select { min-width: 124px; max-width: 150px; }
+        .account select { min-width: 88px; max-width: 132px; }
         .wrap { padding: 28px 14px 40px; }
         .page-header { align-items: flex-start; flex-direction: column; gap: 14px; }
         .panel { padding: 18px 14px; }
@@ -609,13 +684,18 @@
         .stat-card { min-height: 112px; padding: 16px; }
         .stats-heading { align-items: flex-start; flex-direction: column; gap: 6px; }
         .charts-grid { grid-template-columns: 1fr; }
+        .workflow-stepper { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .detail-review-actions { grid-template-columns: 1fr; }
+        .reject-control { grid-template-columns: 1fr; }
+        .reject-control label { grid-column: auto; }
         .detail-grid { grid-template-columns: 1fr; }
         .detail-field.full { grid-column: auto; }
         .donut-content { justify-content: flex-start; }
       }
       @media (max-width: 360px) {
         .brand-symbol { display: none; }
-        .account select { min-width: 112px; max-width: 130px; }
+        .account { max-width: 176px; }
+        .account select { min-width: 78px; max-width: 120px; }
         .history-box { padding: 10px; }
       }
     </style>
@@ -641,6 +721,14 @@
             <strong id="actorName">Loading user</strong>
             <span id="actorRole">Acting user</span>
           </div>
+          <label class="sr-only" for="actorRoleFilter">Acting role filter</label>
+          <select id="actorRoleFilter" aria-label="Acting role filter">
+            <option value="">All roles</option>
+            <option value="REQUESTER">Requester</option>
+            <option value="HSE_OFFICER">HSE reviewer</option>
+            <option value="AREA_AUTHORITY">Area Authority</option>
+            <option value="VIEWER">Viewer</option>
+          </select>
           <label class="sr-only" for="actorSelect">Acting user</label>
           <select id="actorSelect" aria-label="Acting user"></select>
         </div>
@@ -652,7 +740,7 @@
         <div>
           <p class="eyebrow">Safety operations</p>
           <h1>Permit-to-work dashboard</h1>
-          <p class="subtitle">Request, approve and close permits while enforcing the safety workflow.</p>
+          <p class="subtitle">Request, review, approve and close permits with clear safety accountability.</p>
         </div>
         <div class="header-tag">Permit management</div>
       </header>
@@ -724,9 +812,14 @@
             <span class="stat-hint">All recorded permits</span>
           </article>
           <article class="stat-card pending">
-            <span class="stat-label">Awaiting approval</span>
+            <span class="stat-label">Awaiting HSE review</span>
             <strong class="stat-value" id="statRequested">0</strong>
-            <span class="stat-hint">Requests in review queue</span>
+            <span class="stat-hint">New requests to review</span>
+          </article>
+          <article class="stat-card reviewed">
+            <span class="stat-label">Awaiting approval</span>
+            <strong class="stat-value" id="statReviewed">0</strong>
+            <span class="stat-hint">HSE reviewed requests</span>
           </article>
           <article class="stat-card approved">
             <span class="stat-label">Approved</span>
@@ -737,6 +830,11 @@
             <span class="stat-label">Closed</span>
             <strong class="stat-value" id="statClosed">0</strong>
             <span class="stat-hint">Work completed and closed</span>
+          </article>
+          <article class="stat-card rejected">
+            <span class="stat-label">Rejected</span>
+            <strong class="stat-value" id="statRejected">0</strong>
+            <span class="stat-hint">Stopped at HSE review</span>
           </article>
         </div>
       </section>
@@ -799,8 +897,10 @@
               <select id="statusFilter">
                 <option value="">All statuses</option>
                 <option value="REQUESTED">Requested</option>
+                <option value="REVIEWED">Reviewed</option>
                 <option value="APPROVED">Approved</option>
                 <option value="CLOSED">Closed</option>
+                <option value="REJECTED">Rejected</option>
               </select>
             </div>
             <div>
@@ -838,6 +938,8 @@
               <select id="historyActionFilter">
                 <option value="">All actions</option>
                 <option value="REQUEST">Request</option>
+                <option value="REVIEW">Review</option>
+                <option value="REJECT">Reject</option>
                 <option value="APPROVE">Approve</option>
                 <option value="CLOSE">Close</option>
               </select>
@@ -881,6 +983,7 @@
 
     <script>
       const actorSelect = document.getElementById('actorSelect');
+      const actorRoleFilter = document.getElementById('actorRoleFilter');
       const requestUser = document.getElementById('requestUser');
       const requestSite = document.getElementById('requestSite');
       const requestType = document.getElementById('requestType');
@@ -914,6 +1017,7 @@
       let currentHistory = [];
       let selectedPermitId = null;
       let historyLoadFailed = false;
+      let currentDetailPermit = null;
 
       function fillSelect(select, values, keyField, labelField, placeholder) {
         select.innerHTML = '';
@@ -932,21 +1036,30 @@
       async function loadUsers() {
         const response = await fetch('/api/users');
         users = await response.json();
-        actorSelect.innerHTML = '';
-        users.forEach((user) => {
-          const option = document.createElement('option');
-          option.value = user.user_id;
-          option.textContent = `${user.display_name} · ${user.user_id}`;
-          actorSelect.appendChild(option);
-        });
+        updateActorOptions('U-004');
         const requesters = users.filter((user) =>
           user.active === 'Y' && normalizeRoles(user.roles).includes('REQUESTER'));
         fillSelect(requestUser, requesters, 'user_id', 'display_name', 'Choose requester');
         fillSelect(historyUserFilter, users, 'user_id', 'display_name', 'All users');
         if (users.length) {
-          actorSelect.value = 'U-004';
           requestUser.value = 'U-001';
         }
+      }
+
+      function updateActorOptions(preferredUserId = actorSelect.value) {
+        const selectedRole = actorRoleFilter.value;
+        const eligibleActors = users.filter((user) =>
+          !selectedRole || normalizeRoles(user.roles).includes(selectedRole));
+        actorSelect.innerHTML = '';
+        eligibleActors.forEach((user) => {
+          const option = document.createElement('option');
+          option.value = user.user_id;
+          option.textContent = `${user.display_name} · ${user.user_id}`;
+          actorSelect.appendChild(option);
+        });
+        actorSelect.value = eligibleActors.some((user) => user.user_id === preferredUserId)
+          ? preferredUserId
+          : eligibleActors[0]?.user_id || '';
         updateActorSummary();
       }
 
@@ -987,6 +1100,23 @@
       function userAssignedToSite(user, siteId) {
         const assignedSites = normalizeSites(user?.sites);
         return assignedSites.includes('ALL') || assignedSites.includes(siteId.toUpperCase());
+      }
+
+      function eligibleUsersForSite(role, siteId) {
+        return users.filter((user) =>
+          user.active === 'Y'
+          && normalizeRoles(user.roles).includes(role)
+          && userAssignedToSite(user, siteId));
+      }
+
+      function isActiveActorForSite(role, siteId) {
+        const actor = users.find((user) => user.user_id === actorSelect.value);
+        return Boolean(
+          actor
+          && actor.active === 'Y'
+          && normalizeRoles(actor.roles).includes(role)
+          && userAssignedToSite(actor, siteId)
+        );
       }
 
       function updateRequestSites() {
@@ -1042,7 +1172,15 @@
           return;
         }
         actorName.textContent = user.display_name;
-        actorRole.textContent = user.roles.split('|').join(' · ').replaceAll('_', ' ');
+        const roleLabels = {
+          REQUESTER: 'Requester',
+          HSE_OFFICER: 'HSE reviewer',
+          AREA_AUTHORITY: 'Area Authority',
+          VIEWER: 'Viewer',
+        };
+        actorRole.textContent = normalizeRoles(user.roles)
+          .map((role) => roleLabels[role] || role.replaceAll('_', ' '))
+          .join(' · ');
         actorAvatar.textContent = user.display_name
           .split(/\s+/)
           .map((part) => part[0])
@@ -1057,6 +1195,13 @@
         const [year, month, day] = datePart.split('-').map(Number);
         const date = new Date(year, month - 1, day);
         return Number.isNaN(date.getTime()) ? null : date;
+      }
+
+      function formatDateTime(value) {
+        const parts = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/);
+        return parts
+          ? `${parts[3]}/${parts[2]}/${parts[1]} ${parts[4]}:${parts[5]}`
+          : value || 'Not provided';
       }
 
       function renderSiteChart(elementId, permits, variant = '') {
@@ -1163,14 +1308,48 @@
         })[character]);
       }
 
+      function workflowStepName(status) {
+        return ({
+          REQUESTED: 'HSE review',
+          REVIEWED: 'Area Authority approval',
+          APPROVED: 'Work in progress',
+          CLOSED: 'Closed',
+          REJECTED: 'Rejected',
+        })[status] || 'Unknown step';
+      }
+
+      function workflowProgressMarkup(status) {
+        const steps = ['Request submitted', 'HSE review', 'Area Authority approval', 'Work close-out'];
+        const currentStep = { REQUESTED: 1, REVIEWED: 2, APPROVED: 3, CLOSED: 4 }[status];
+        return `
+          <ol class="workflow-stepper" aria-label="Permit workflow steps">
+            ${steps.map((step, index) => {
+              let state = 'upcoming';
+              if (status === 'REJECTED') {
+                state = index === 0 ? 'complete' : index === 1 ? 'rejected' : 'upcoming';
+              } else if (index < currentStep) {
+                state = 'complete';
+              } else if (index === currentStep) {
+                state = 'current';
+              }
+              return `<li class="workflow-step ${state}" ${state === 'current' ? 'aria-current="step"' : ''}>
+                <span class="workflow-step-index">Step ${index + 1}</span>
+                <span class="workflow-step-name">${escapeHtml(step)}</span>
+              </li>`;
+            }).join('')}
+          </ol>`;
+      }
+
       async function fetchDashboardStats() {
         const response = await fetch('/api/permits');
         const data = await response.json();
         allPermits = data.permits || [];
         document.getElementById('statTotal').textContent = allPermits.length;
         document.getElementById('statRequested').textContent = allPermits.filter((permit) => permit.status === 'REQUESTED').length;
+        document.getElementById('statReviewed').textContent = allPermits.filter((permit) => permit.status === 'REVIEWED').length;
         document.getElementById('statApproved').textContent = allPermits.filter((permit) => permit.status === 'APPROVED').length;
         document.getElementById('statClosed').textContent = allPermits.filter((permit) => permit.status === 'CLOSED').length;
+        document.getElementById('statRejected').textContent = allPermits.filter((permit) => permit.status === 'REJECTED').length;
         renderCharts();
       }
 
@@ -1227,7 +1406,12 @@
             <td><strong>${escapeHtml(permit.permit_ref)}</strong><br>${escapeHtml(permit.work_description)}</td>
             <td>${escapeHtml(permit.requested_by)}<br>${escapeHtml(permit.site_id)}</td>
             <td>${escapeHtml(permit.permit_type_id)}</td>
-            <td><span class="status ${escapeHtml(permit.status)}">${escapeHtml(permit.status)}</span></td>
+            <td>
+              <span class="workflow-status">
+                <span class="status ${escapeHtml(permit.status)}">${escapeHtml(permit.status)}</span>
+                <span class="workflow-step-name-current">${escapeHtml(workflowStepName(permit.status))}</span>
+              </span>
+            </td>
             <td>
               <div class="actions">
                 <button class="row-button secondary" data-action="details" data-id="${escapeHtml(permit.permit_id)}">View details</button>
@@ -1274,6 +1458,7 @@
       async function openPermitDetails(permitId) {
         dashboardPage.classList.add('hidden');
         permitDetailPage.classList.remove('hidden');
+        currentDetailPermit = null;
         permitDetailContent.innerHTML = '<div class="panel" role="status">Loading permit details...</div>';
         window.scrollTo({ top: 0, behavior: 'smooth' });
         try {
@@ -1291,12 +1476,39 @@
       }
 
       function renderPermitDetails(permit) {
+        currentDetailPermit = permit;
         const requester = users.find((user) => user.user_id === permit.requested_by);
+        const reviewers = eligibleUsersForSite('HSE_OFFICER', permit.site_id)
+          .map((user) => `${user.display_name} (${user.user_id})`)
+          .join(', ') || 'No active HSE reviewer assigned to this site';
+        const approvers = eligibleUsersForSite('AREA_AUTHORITY', permit.site_id)
+          .map((user) => `${user.display_name} (${user.user_id})`)
+          .join(', ') || 'No active Area Authority assigned to this site';
         const value = (text) => escapeHtml(text || 'Not provided');
-        const dateValue = (text) => escapeHtml(text ? text.replace('T', ' ') : 'Not provided');
-        const approveButton = permit.status === 'REQUESTED'
-          ? `<button id="approvePermitButton" type="button" data-id="${escapeHtml(permit.permit_id)}">Approve permit</button>`
+        const dateValue = (text) => escapeHtml(formatDateTime(text));
+        const canReview = permit.status === 'REQUESTED' && isActiveActorForSite('HSE_OFFICER', permit.site_id);
+        const canApprove = permit.status === 'REVIEWED'
+          && actorSelect.value !== permit.requested_by
+          && isActiveActorForSite('AREA_AUTHORITY', permit.site_id);
+        const reviewActions = canReview
+          ? `<div class="detail-review-actions">
+              <button id="markReviewedButton" type="button">Mark Reviewed</button>
+              <div class="reject-control">
+                <label for="reviewRejectionReason">Rejection reason (required)</label>
+                <textarea id="reviewRejectionReason" rows="2"></textarea>
+                <button id="rejectPermitButton" type="button" class="danger">Reject</button>
+                <p id="reviewReasonError" class="error" role="alert"></p>
+              </div>
+            </div>`
           : '';
+        const approveButton = canApprove
+          ? `<div class="detail-actions"><button id="approvePermitButton" type="button">Approve permit</button></div>`
+          : '';
+        const waitingMessage = permit.status === 'REQUESTED' && !canReview
+          ? '<p class="detail-empty-action">Next step: an eligible HSE officer reviews this request.</p>'
+          : permit.status === 'REVIEWED' && !canApprove
+            ? '<p class="detail-empty-action">HSE review is complete. Next step: an eligible Area Authority approves the permit.</p>'
+            : '';
         permitDetailContent.innerHTML = `
           <div class="panel">
             <div class="section-header">
@@ -1304,8 +1516,12 @@
                 <p class="eyebrow">Review before approval</p>
                 <h2>${escapeHtml(permit.permit_ref)} · ${escapeHtml(permit.permit_type_id)}</h2>
               </div>
-              <span class="status ${escapeHtml(permit.status)}">${escapeHtml(permit.status)}</span>
+              <span class="workflow-status">
+                <span class="status ${escapeHtml(permit.status)}">${escapeHtml(permit.status)}</span>
+                <span class="workflow-step-name-current">Current step: ${escapeHtml(workflowStepName(permit.status))}</span>
+              </span>
             </div>
+            ${workflowProgressMarkup(permit.status)}
             <dl class="detail-grid">
               <div class="detail-field">
                 <dt>Requester</dt>
@@ -1323,6 +1539,14 @@
                 <dt>Planned work end</dt>
                 <dd>${dateValue(permit.valid_to)}</dd>
               </div>
+              <div class="detail-field">
+                <dt>Eligible HSE reviewer(s)</dt>
+                <dd>${value(reviewers)}</dd>
+              </div>
+              <div class="detail-field">
+                <dt>Eligible Area Authority approver(s)</dt>
+                <dd>${value(approvers)}</dd>
+              </div>
               <div class="detail-field full">
                 <dt>Work description</dt>
                 <dd>${value(permit.work_description)}</dd>
@@ -1336,10 +1560,29 @@
                 <dd>${value(permit.controls)}</dd>
               </div>
             </dl>
-            ${permit.status === 'REQUESTED' ? '<p class="detail-review-note">Confirm the work description, hazards, controls, site, and planned work window before approving.</p>' : ''}
-            ${approveButton ? `<div class="detail-actions">${approveButton}</div>` : ''}
+            ${permit.status === 'REQUESTED' ? '<p class="detail-review-note">The HSE reviewer checks the work description, hazards, controls, site, and planned work window, then marks the request Reviewed or rejects it with a reason.</p>' : ''}
+            ${reviewActions}
+            ${waitingMessage}
+            ${approveButton}
           </div>
         `;
+        const markReviewedButton = document.getElementById('markReviewedButton');
+        if (markReviewedButton) {
+          markReviewedButton.addEventListener('click', () =>
+            performPermitAction(permit.permit_id, 'reviewed'));
+        }
+        const rejectPermitButton = document.getElementById('rejectPermitButton');
+        if (rejectPermitButton) {
+          rejectPermitButton.addEventListener('click', () => {
+            const reason = document.getElementById('reviewRejectionReason').value.trim();
+            if (!reason) {
+              document.getElementById('reviewReasonError').textContent = 'Enter a rejection reason.';
+              document.getElementById('reviewRejectionReason').focus();
+              return;
+            }
+            performPermitAction(permit.permit_id, 'reject', reason);
+          });
+        }
         const approvePermitButton = document.getElementById('approvePermitButton');
         if (approvePermitButton) {
           approvePermitButton.addEventListener('click', () =>
@@ -1347,17 +1590,24 @@
         }
       }
 
-      async function performPermitAction(permitId, action) {
+      async function performPermitAction(permitId, action, comment = '') {
         const userId = actorSelect.value;
         if (!userId) {
           alert('Select a user to act as.');
           return;
         }
         try {
-          const response = await fetch(`/api/permits/${permitId}/${action}`, {
+          const isReviewDecision = action === 'reviewed' || action === 'reject';
+          const endpoint = isReviewDecision
+            ? `/api/permits/${permitId}/review`
+            : `/api/permits/${permitId}/${action}`;
+          const body = isReviewDecision
+            ? { user_id: userId, decision: action === 'reviewed' ? 'REVIEWED' : 'REJECT', comment }
+            : { user_id: userId, comment: `${action} action initiated from the dashboard` };
+          const response = await fetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ user_id: userId, comment: `${action} action initiated from the dashboard` })
+            body: JSON.stringify(body)
           });
           const payload = await response.json();
           if (!response.ok) {
@@ -1435,7 +1685,7 @@
             <td>${escapeHtml(entry.to_state)}</td>
             <td>${escapeHtml(entry.user_id)}</td>
             <td>${escapeHtml(entry.actor_role)}</td>
-            <td>${escapeHtml(entry.timestamp)}</td>
+            <td>${escapeHtml(formatDateTime(entry.timestamp))}</td>
             <td>${entry.success ? 'Success' : 'Refused'}</td>
             <td>${escapeHtml(entry.check_id || '')}</td>
             <td>${escapeHtml(entry.comment)}</td>
@@ -1499,6 +1749,17 @@
       });
 
       actorSelect.addEventListener('change', updateActorSummary);
+      actorSelect.addEventListener('change', () => {
+        if (currentDetailPermit && !permitDetailPage.classList.contains('hidden')) {
+          renderPermitDetails(currentDetailPermit);
+        }
+      });
+      actorRoleFilter.addEventListener('change', () => {
+        updateActorOptions();
+        if (currentDetailPermit && !permitDetailPage.classList.contains('hidden')) {
+          renderPermitDetails(currentDetailPermit);
+        }
+      });
       backToPermits.addEventListener('click', () => {
         permitDetailPage.classList.add('hidden');
         dashboardPage.classList.remove('hidden');
