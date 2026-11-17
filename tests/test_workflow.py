@@ -1,4 +1,5 @@
 import sqlite3
+from datetime import datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
@@ -11,6 +12,8 @@ client = TestClient(app)
 
 def setup_function() -> None:
     reset_database()
+    with connect_db() as conn:
+        conn.execute("UPDATE users SET sites = 'GC-01|GC-02' WHERE user_id = 'U-001'")
 
 
 def test_request_approve_and_close_permit():
@@ -45,10 +48,15 @@ def test_request_approve_and_close_permit():
     )
     assert close.status_code == 200, close.text
     assert close.json()["permit"]["status"] == "CLOSED"
+    assert datetime.fromisoformat(close.json()["permit"]["created_at"]).utcoffset() == timedelta(hours=3)
 
     history = client.get(f"/api/permits/{permit['permit_id']}/history")
     assert history.status_code == 200
     assert any(item["action"] == "APPROVE" and item["success"] for item in history.json()["history"])
+    assert all(
+        datetime.fromisoformat(item["timestamp"]).utcoffset() == timedelta(hours=3)
+        for item in history.json()["history"]
+    )
 
 
 def test_self_approval_is_refused_and_recorded_in_history():
@@ -188,22 +196,26 @@ def test_request_requires_requester_role_and_site_assignment():
 
 
 def test_requester_with_all_site_access_can_request_any_site():
+    original_sites = "GC-01|GC-02"
     with connect_db() as conn:
         conn.execute("UPDATE users SET sites = 'ALL' WHERE user_id = 'U-001'")
-
-    response = client.post(
-        "/api/permits/request",
-        json={
-            "requested_by": "U-001",
-            "site_id": "BS-01",
-            "permit_type_id": "HOT_WORK",
-            "work_description": "Inspect the booster station",
-            "valid_from": "2026-11-17T07:00",
-            "valid_to": "2026-11-17T10:00",
-            "hazards": "Hot surfaces",
-            "controls": "Wear protective equipment",
-        },
-    )
+    try:
+        response = client.post(
+            "/api/permits/request",
+            json={
+                "requested_by": "U-001",
+                "site_id": "BS-01",
+                "permit_type_id": "HOT_WORK",
+                "work_description": "Inspect the booster station",
+                "valid_from": "2026-11-17T07:00",
+                "valid_to": "2026-11-17T10:00",
+                "hazards": "Hot surfaces",
+                "controls": "Wear protective equipment",
+            },
+        )
+    finally:
+        with connect_db() as conn:
+            conn.execute("UPDATE users SET sites = ? WHERE user_id = 'U-001'", (original_sites,))
     assert response.status_code == 200, response.text
     assert response.json()["permit"]["site_id"] == "BS-01"
 
@@ -289,6 +301,9 @@ def test_read_endpoints_return_users_permits_and_history():
     assert permit.json()["permit_ref"] == "P-1001"
     assert history.status_code == 200
     assert history.json()["history"]
+    approved_seed_history = client.get("/api/permits/3/history").json()["history"][-1]
+    assert approved_seed_history["user_id"] == "U-005"
+    assert approved_seed_history["actor_role"] == "AREA_AUTHORITY"
     assert client.get("/api/permits/999/history").status_code == 404
 
 

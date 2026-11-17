@@ -89,7 +89,7 @@ Use any language, framework and database, as long as it runs locally from your R
 - **Team name:** AI Force 8
 - **Team members:** Abhishek, Ahmad Ali, Mina, Sadiq, Tamer, Henawy, Imran, Khalid.
 - **Stack:** Python 3.12, FastAPI, SQLite, pytest; the UI is server-rendered HTML with browser JavaScript.
-- **Dashboard:** requester-linked site choices, a read-only list of eligible approvers, management totals, weekly/monthly permit counts by site, requester distribution, and searchable/sortable permit and history views.
+- **Dashboard:** requester-linked site choices, a read-only list of active eligible area authorities (excluding the requester), management totals, weekly/monthly permit counts by site, requester distribution, and searchable/sortable permit and history views.
 
 ### Run it
 
@@ -122,6 +122,7 @@ python -m pytest -q
 | Site `ALL` access and normalized roles | `app/workflow.py` | `test_requester_with_all_site_access_can_request_any_site` and `test_approval_checks_site_assignment_and_normalizes_role_formatting` |
 | Valid and invalid workflow transitions | `app/workflow.py` | `test_request_approve_and_close_permit` and `test_invalid_transition_is_refused_and_recorded_in_history` |
 | Append-only history | `app/db.py`, `app/workflow.py` | `test_permit_history_cannot_be_updated_or_deleted`; refused actions are checked by `test_self_approval_is_refused_and_recorded_in_history`. |
+| Audit identity and Kuwait timestamps | `app/workflow.py`, `app/db.py` | Lifecycle and read-endpoint tests verify the acting role, approver, and UTC+03:00 timestamps. |
 | Read and action API endpoints | `app/main.py` | `test_read_endpoints_return_users_permits_and_history` and the workflow request/approve/close tests. |
 | Invalid permit type and time range | `app/workflow.py` | `test_unknown_permit_type_and_invalid_date_are_rejected` |
 

@@ -4,7 +4,7 @@ import sqlite3
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from app.db import connect_db, normalize_roles, normalize_sites
+from app.db import connect_db, kuwait_now_iso, normalize_roles, normalize_sites
 
 VALID_ACTIONS = {"REQUEST", "APPROVE", "CLOSE"}
 STATE_SEQUENCE = {"NEW": "REQUESTED", "REQUESTED": "APPROVED", "APPROVED": "CLOSED"}
@@ -56,9 +56,9 @@ def _record_history(conn: sqlite3.Connection, permit_id: int, action: str, from_
         """
         INSERT INTO permit_history (
             permit_id, action, from_state, to_state, user_id, actor_role, timestamp, success, check_id, comment
-        ) VALUES (?, ?, ?, ?, ?, ?, datetime('now'), ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
-        (permit_id, action, from_state, to_state, user_id, actor_role, 1 if success else 0, check_id, comment),
+        (permit_id, action, from_state, to_state, user_id, actor_role, kuwait_now_iso(), 1 if success else 0, check_id, comment),
     )
 
 
@@ -189,14 +189,27 @@ def create_request(payload: dict[str, Any]) -> dict[str, Any]:
             return {"success": False, "error": {"code": "INVALID_REQUEST", "message": f"valid_to {valid_to} is before valid_from {valid_from}."}}
 
         permit_ref = f"P-{int(conn.execute('SELECT COALESCE(MAX(permit_id),0) + 1 FROM permits').fetchone()[0]):04d}"
+        requested_at = kuwait_now_iso()
         conn.execute(
             """
             INSERT INTO permits (
                 permit_ref, requested_by, site_id, permit_type_id, work_description,
                 valid_from, valid_to, hazards, controls, status, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'REQUESTED', datetime('now'), datetime('now'))
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'REQUESTED', ?, ?)
             """,
-            (permit_ref, requested_by, site_id, permit_type_id, work_description, valid_from, valid_to, hazards, controls),
+            (
+                permit_ref,
+                requested_by,
+                site_id,
+                permit_type_id,
+                work_description,
+                valid_from,
+                valid_to,
+                hazards,
+                controls,
+                requested_at,
+                requested_at,
+            ),
         )
         permit_id = conn.execute("SELECT permit_id FROM permits WHERE permit_ref = ?", (permit_ref,)).fetchone()[0]
         _record_history(conn, permit_id, "REQUEST", "NEW", "REQUESTED", requested_by, "REQUESTER", True, "WORKFLOW", "Permit requested")
@@ -249,8 +262,8 @@ def attempt_action(permit_id: int, action: str, user_id: str, comment: str = "")
 
         target_status = "APPROVED" if action_name == "APPROVE" else "CLOSED"
         conn.execute(
-            "UPDATE permits SET status = ?, updated_at = datetime('now') WHERE permit_id = ?",
-            (target_status, permit_id),
+            "UPDATE permits SET status = ?, updated_at = ? WHERE permit_id = ?",
+            (target_status, kuwait_now_iso(), permit_id),
         )
         _record_history(conn, permit_id, action_name, current_status, target_status, user_id, actor_role, True, "WORKFLOW", comment or f"Permit {action_name.lower()}d")
         row = conn.execute("SELECT * FROM permits WHERE permit_id = ?", (permit_id,)).fetchone()

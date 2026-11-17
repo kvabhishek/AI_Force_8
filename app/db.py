@@ -2,12 +2,18 @@ from __future__ import annotations
 
 import csv
 import sqlite3
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = ROOT / "data"
 DB_PATH = ROOT / "permit_work.db"
+KUWAIT_TIMEZONE = timezone(timedelta(hours=3))
+
+
+def kuwait_now_iso() -> str:
+    return datetime.now(KUWAIT_TIMEZONE).isoformat(timespec="seconds")
 
 
 def connect_db() -> sqlite3.Connection:
@@ -226,17 +232,19 @@ def initialize_database() -> None:
                     "hazards": "Flammable gas; sparks; hot surfaces",
                     "controls": "Drain and purge the line; gas test; fire watch",
                     "status": "APPROVED",
+                    "approved_by": "U-005",
                 },
             ]
             for row in seed_rows:
                 if conn.execute("SELECT 1 FROM permits WHERE permit_ref = ?", (row["permit_ref"],)).fetchone():
                     continue
+                seeded_at = kuwait_now_iso()
                 conn.execute(
                     """
                     INSERT INTO permits (
                         permit_ref, requested_by, site_id, permit_type_id, work_description,
                         valid_from, valid_to, hazards, controls, status, created_at, updated_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         row["permit_ref"],
@@ -249,25 +257,29 @@ def initialize_database() -> None:
                         row["hazards"],
                         row["controls"],
                         row["status"],
+                        seeded_at,
+                        seeded_at,
                     ),
                 )
                 permit_id = conn.execute("SELECT permit_id FROM permits WHERE permit_ref = ?", (row["permit_ref"],)).fetchone()[0]
                 action = "REQUEST" if row["status"] == "REQUESTED" else "APPROVE"
+                actor_user_id = row.get("approved_by", row["requested_by"])
                 from_state = "NEW" if row["status"] == "REQUESTED" else "REQUESTED"
                 to_state = row["status"]
                 conn.execute(
                     """
                     INSERT INTO permit_history (
                         permit_id, action, from_state, to_state, user_id, actor_role, timestamp, success, check_id, comment
-                    ) VALUES (?, ?, ?, ?, ?, ?, datetime('now'), 1, 'WORKFLOW', ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, 1, 'WORKFLOW', ?)
                     """,
                     (
                         permit_id,
                         action,
                         from_state,
                         to_state,
-                        row["requested_by"],
+                        actor_user_id,
                         "REQUESTER" if action == "REQUEST" else "AREA_AUTHORITY",
+                        seeded_at,
                         f"Seeded {row['status'].lower()} permit",
                     ),
                 )
