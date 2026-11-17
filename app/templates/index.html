@@ -1,0 +1,1370 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Permit-to-work dashboard</title>
+    <style>
+      :root {
+        --bg: #f3f6fa;
+        --panel: #ffffff;
+        --line: #dce4ed;
+        --text: #172b3a;
+        --muted: #647789;
+        --accent: #126b60;
+        --accent-dark: #0e574e;
+        --good: #16794b;
+        --bad: #ad3535;
+        --warn: #a96808;
+        --shadow: 0 12px 32px rgba(27, 47, 67, 0.06);
+      }
+
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: Inter, "Segoe UI", Arial, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+      .topbar {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background: #102a36;
+        color: #fff;
+        box-shadow: 0 4px 18px rgba(13, 35, 46, 0.14);
+      }
+      .topbar-inner {
+        max-width: 1240px;
+        min-height: 72px;
+        margin: 0 auto;
+        padding: 10px 24px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+      }
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 11px;
+        color: #fff;
+        text-decoration: none;
+      }
+      .brand-symbol {
+        width: 40px;
+        height: 40px;
+        display: grid;
+        place-items: center;
+        border-radius: 12px;
+        background: #176f63;
+      }
+      .brand-symbol svg { width: 24px; height: 24px; }
+      .brand-copy { display: grid; gap: 3px; }
+      .brand-copy strong {
+        font-size: 17px;
+        letter-spacing: -0.02em;
+      }
+      .brand-copy strong span { color: #62c6a9; }
+      .brand-copy small {
+        color: #b7c8ce;
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: 0.11em;
+      }
+      .account {
+        display: flex;
+        align-items: center;
+        gap: 11px;
+      }
+      .user-avatar {
+        width: 38px;
+        height: 38px;
+        flex: 0 0 auto;
+        display: grid;
+        place-items: center;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-radius: 50%;
+        background: #244552;
+        color: #d9f4eb;
+        font-size: 12px;
+        font-weight: 800;
+      }
+      .account-meta {
+        min-width: 105px;
+        display: grid;
+        gap: 3px;
+      }
+      .account-meta strong { font-size: 13px; }
+      .account-meta span {
+        color: #b7c8ce;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+      .account select {
+        width: auto;
+        min-width: 145px;
+        max-width: 205px;
+        padding: 9px 30px 9px 10px;
+        border-color: #3d5863;
+        background-color: #193744;
+        color: #fff;
+        font-size: 12px;
+      }
+      .account select:focus { box-shadow: 0 0 0 3px rgba(98, 198, 169, 0.2); }
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+      .wrap {
+        max-width: 1240px;
+        margin: 0 auto;
+        padding: 42px 24px 64px;
+      }
+      .page-header {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 24px;
+        margin-bottom: 30px;
+      }
+      .eyebrow {
+        margin: 0 0 8px;
+        color: var(--accent);
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+      h1 {
+        margin: 0;
+        font-size: clamp(28px, 3vw, 36px);
+        letter-spacing: -0.035em;
+        line-height: 1.15;
+      }
+      .subtitle {
+        color: var(--muted);
+        margin: 10px 0 0;
+        font-size: 15px;
+        line-height: 1.6;
+      }
+      .header-tag {
+        flex: 0 0 auto;
+        padding: 9px 13px;
+        border: 1px solid #cfe4df;
+        border-radius: 999px;
+        background: #eaf5f2;
+        color: var(--accent-dark);
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .panel {
+        min-width: 0;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 24px;
+        margin-bottom: 20px;
+        box-shadow: var(--shadow);
+      }
+      .panel h2 {
+        margin: 0 0 20px;
+        font-size: 19px;
+        letter-spacing: -0.02em;
+      }
+      .section-note {
+        margin: -12px 0 20px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .field-note {
+        margin: 6px 0 0;
+        color: var(--muted);
+        font-size: 11px;
+        line-height: 1.4;
+      }
+      input[readonly] {
+        background: #f4f7f9;
+        color: #405768;
+      }
+      .section-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+      }
+      .section-header h2 { margin-bottom: 16px; }
+      .section-header .section-note { margin-bottom: 18px; }
+      .count-label {
+        flex: 0 0 auto;
+        margin-top: 2px;
+        padding: 7px 10px;
+        border-radius: 999px;
+        background: #edf3f5;
+        color: #45606d;
+        font-size: 11px;
+        font-weight: 700;
+      }
+      .toolbar {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+        gap: 16px;
+        align-items: end;
+      }
+      .filter-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
+        gap: 12px;
+        align-items: end;
+        margin-bottom: 18px;
+      }
+      .filter-grid .search-field { grid-column: span 2; }
+      .filter-grid button { min-height: 42px; }
+      .stats-section { margin: 4px 0 24px; }
+      .stats-heading {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 14px;
+      }
+      .stats-heading h2 {
+        margin: 0;
+        font-size: 21px;
+        letter-spacing: -0.025em;
+      }
+      .stats-heading .eyebrow { margin-bottom: 6px; }
+      .stats-heading .section-note { margin: 0 0 2px; }
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 14px;
+      }
+      .stat-card {
+        position: relative;
+        min-height: 126px;
+        padding: 19px 20px;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: var(--panel);
+        box-shadow: var(--shadow);
+      }
+      .stat-card::after {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 4px;
+        height: 100%;
+        background: #4a8290;
+        content: "";
+      }
+      .stat-card.pending::after { background: #d39435; }
+      .stat-card.approved::after { background: #27855b; }
+      .stat-card.closed::after { background: #738391; }
+      .stat-label {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .stat-value {
+        display: block;
+        margin-top: 14px;
+        font-size: 32px;
+        font-weight: 800;
+        letter-spacing: -0.04em;
+        line-height: 1;
+      }
+      .stat-hint {
+        display: block;
+        margin-top: 7px;
+        color: var(--muted);
+        font-size: 11px;
+      }
+      .charts-section { margin: 0 0 24px; }
+      .charts-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
+      }
+      .chart-card {
+        min-width: 0;
+        padding: 20px;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: var(--panel);
+        box-shadow: var(--shadow);
+      }
+      .chart-card h3 {
+        margin: 0;
+        font-size: 15px;
+        letter-spacing: -0.01em;
+      }
+      .chart-period {
+        display: block;
+        margin-top: 5px;
+        color: var(--muted);
+        font-size: 11px;
+      }
+      .bar-chart {
+        display: grid;
+        gap: 13px;
+        margin-top: 21px;
+      }
+      .bar-row {
+        display: grid;
+        grid-template-columns: 48px minmax(40px, 1fr) 24px;
+        align-items: center;
+        gap: 9px;
+        color: var(--muted);
+        font-size: 11px;
+      }
+      .bar-track {
+        height: 9px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: #edf2f5;
+      }
+      .bar-fill {
+        height: 100%;
+        min-width: 0;
+        border-radius: inherit;
+        background: #178173;
+        transition: width 180ms ease;
+      }
+      .bar-fill.monthly { background: #5483b6; }
+      .bar-value {
+        color: var(--text);
+        font-weight: 700;
+        text-align: right;
+      }
+      .donut-content {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 20px;
+        min-height: 172px;
+        margin-top: 8px;
+      }
+      .donut-chart {
+        position: relative;
+        width: 152px;
+        height: 152px;
+        flex: 0 0 auto;
+        display: grid;
+        place-items: center;
+        border-radius: 50%;
+        background: #e9eef2;
+      }
+      .donut-chart::before {
+        position: absolute;
+        inset: 23%;
+        border-radius: 50%;
+        background: #fff;
+        box-shadow: inset 0 0 0 1px #edf1f4;
+        content: "";
+      }
+      .donut-center {
+        position: relative;
+        display: grid;
+        gap: 3px;
+        text-align: center;
+      }
+      .donut-center strong {
+        font-size: 24px;
+        letter-spacing: -0.04em;
+      }
+      .donut-center span {
+        color: var(--muted);
+        font-size: 10px;
+      }
+      .donut-legend {
+        min-width: 0;
+        display: grid;
+        gap: 9px;
+      }
+      .legend-item {
+        display: grid;
+        grid-template-columns: 8px minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 7px;
+        color: var(--muted);
+        font-size: 10px;
+      }
+      .legend-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+      }
+      .legend-name {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .legend-count { color: var(--text); font-weight: 700; }
+      label {
+        display: block;
+        font-size: 12px;
+        font-weight: 700;
+        margin-bottom: 7px;
+        color: var(--muted);
+      }
+      select, input, textarea, button {
+        width: 100%;
+        border-radius: 9px;
+        border: 1px solid var(--line);
+        padding: 11px 12px;
+        font: inherit;
+        font-size: 14px;
+      }
+      select, input, textarea {
+        background: #fff;
+        color: var(--text);
+        transition: border-color 150ms ease, box-shadow 150ms ease;
+      }
+      select:focus, input:focus, textarea:focus {
+        outline: none;
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(18, 107, 96, 0.12);
+      }
+      button {
+        background: var(--accent);
+        color: white;
+        border: 0;
+        cursor: pointer;
+        font-weight: 700;
+        transition: background 150ms ease, transform 150ms ease;
+      }
+      button:hover {
+        background: var(--accent-dark);
+        transform: translateY(-1px);
+      }
+      button:focus-visible {
+        outline: 3px solid rgba(18, 107, 96, 0.3);
+        outline-offset: 2px;
+      }
+      button.secondary {
+        background: #eaf0f5;
+        color: #2b4355;
+      }
+      button.secondary:hover {
+        background: #dce6ee;
+      }
+      button.warn {
+        background: var(--warn);
+      }
+      button.danger {
+        background: var(--bad);
+      }
+      button.danger:hover {
+        background: #8f2929;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 24px;
+      }
+      #permitList, .history-box {
+        overflow-x: auto;
+      }
+      #historyPanel { scroll-margin-top: 84px; }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th, td {
+        text-align: left;
+        padding: 13px 12px;
+        border-bottom: 1px solid var(--line);
+        vertical-align: top;
+      }
+      th {
+        background: #f7f9fb;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--muted);
+        white-space: nowrap;
+      }
+      tbody tr:hover {
+        background: #f8fbfa;
+      }
+      #permitList table {
+        min-width: 760px;
+      }
+      .history-box table {
+        min-width: 900px;
+      }
+      .status {
+        display: inline-block;
+        padding: 5px 9px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+      }
+      .status.REQUESTED { background: #eaf2ff; color: #2857a4; }
+      .status.APPROVED { background: #e8f5ed; color: var(--good); }
+      .status.CLOSED { background: #edf0f2; color: #465563; }
+      .actions { display: flex; gap: 7px; }
+      .history-box {
+        background: #fbfcfd;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 16px;
+      }
+      .history-box h3 {
+        margin: 0 0 12px;
+        font-size: 16px;
+      }
+      .empty-state {
+        margin: 8px 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .error {
+        margin-top: 8px;
+        color: var(--bad);
+        font-weight: 700;
+      }
+      .hidden { display: none; }
+      .row-button {
+        width: auto;
+        padding: 8px 11px;
+        font-size: 12px;
+        white-space: nowrap;
+      }
+      textarea { min-height: 76px; resize: vertical; }
+      @media (max-width: 640px) {
+        .topbar-inner { padding: 10px 14px; gap: 10px; }
+        .brand-copy small { display: none; }
+        .brand-copy strong { font-size: 15px; }
+        .brand-symbol { width: 36px; height: 36px; }
+        .account { gap: 7px; }
+        .user-avatar, .account-meta { display: none; }
+        .account select { min-width: 124px; max-width: 150px; }
+        .wrap { padding: 28px 14px 40px; }
+        .page-header { align-items: flex-start; flex-direction: column; gap: 14px; }
+        .panel { padding: 18px 14px; }
+        .toolbar { grid-template-columns: 1fr; }
+        .filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .filter-grid .search-field { grid-column: 1 / -1; }
+        .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .stat-card { min-height: 112px; padding: 16px; }
+        .stats-heading { align-items: flex-start; flex-direction: column; gap: 6px; }
+        .charts-grid { grid-template-columns: 1fr; }
+        .donut-content { justify-content: flex-start; }
+      }
+      @media (max-width: 360px) {
+        .brand-symbol { display: none; }
+        .account select { min-width: 112px; max-width: 130px; }
+        .history-box { padding: 10px; }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a class="brand" href="/" aria-label="Permit2Work dashboard">
+          <span class="brand-symbol" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M12 2.8 20 6v5.5c0 5-3.4 8.3-8 9.8-4.6-1.5-8-4.8-8-9.8V6l8-3.2Z" stroke="white" stroke-width="1.7" stroke-linejoin="round"/>
+              <path d="m8.3 12.1 2.4 2.4 5-5" stroke="#9BE2C7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </span>
+          <span class="brand-copy">
+            <strong>Permit<span>2</span>Work</strong>
+            <small>CONTROLLED WORK · ACCOUNTABLE ACTIONS</small>
+          </span>
+        </a>
+        <div class="account">
+          <div class="user-avatar" id="actorAvatar" aria-hidden="true">--</div>
+          <div class="account-meta">
+            <strong id="actorName">Loading user</strong>
+            <span id="actorRole">Acting user</span>
+          </div>
+          <label class="sr-only" for="actorSelect">Acting user</label>
+          <select id="actorSelect" aria-label="Acting user"></select>
+        </div>
+      </div>
+    </header>
+    <div class="wrap">
+      <header class="page-header">
+        <div>
+          <p class="eyebrow">Safety operations</p>
+          <h1>Permit-to-work dashboard</h1>
+          <p class="subtitle">Request, approve and close permits while enforcing the safety workflow.</p>
+        </div>
+        <div class="header-tag">Permit management</div>
+      </header>
+
+      <div class="panel" id="requestPanel">
+        <h2>Request a permit</h2>
+        <p class="section-note">Provide the work scope, schedule and safety controls for review.</p>
+        <form id="requestForm">
+          <div class="toolbar">
+            <div>
+              <label for="requestUser">Requester</label>
+              <select id="requestUser"></select>
+            </div>
+            <div>
+              <label for="requestSite">Site</label>
+              <select id="requestSite"></select>
+            </div>
+            <div>
+              <label for="requestType">Permit type</label>
+              <select id="requestType"></select>
+            </div>
+            <div>
+              <label for="requestApprover">Eligible approver(s) · read only</label>
+              <input id="requestApprover" type="text" value="Select requester and site" readonly aria-live="polite" />
+              <p id="approverNote" class="field-note">Eligible active area authorities are based on the selected site.</p>
+            </div>
+          </div>
+          <div class="toolbar" style="margin-top: 12px;">
+            <div style="grid-column: 1 / -1;">
+              <label for="workDescription">Work description</label>
+              <textarea id="workDescription" required></textarea>
+            </div>
+            <div>
+              <label for="validFrom">Valid from</label>
+              <input id="validFrom" type="datetime-local" required />
+            </div>
+            <div>
+              <label for="validTo">Valid to</label>
+              <input id="validTo" type="datetime-local" required />
+            </div>
+            <div>
+              <label for="hazards">Hazards</label>
+              <input id="hazards" type="text" placeholder="Flammable gas; sparks" />
+            </div>
+            <div>
+              <label for="controls">Controls</label>
+              <input id="controls" type="text" placeholder="Gas test; fire watch" />
+            </div>
+            <div>
+              <button type="submit">Submit request</button>
+            </div>
+          </div>
+          <div id="requestError" class="error hidden"></div>
+        </form>
+      </div>
+
+      <section class="stats-section" aria-labelledby="overviewTitle">
+        <div class="stats-heading">
+          <div>
+            <p class="eyebrow">Management overview</p>
+            <h2 id="overviewTitle">Permit snapshot</h2>
+          </div>
+          <p class="section-note">Current totals across all sites.</p>
+        </div>
+        <div class="stats-grid">
+          <article class="stat-card">
+            <span class="stat-label">Total permits</span>
+            <strong class="stat-value" id="statTotal">0</strong>
+            <span class="stat-hint">All recorded permits</span>
+          </article>
+          <article class="stat-card pending">
+            <span class="stat-label">Awaiting approval</span>
+            <strong class="stat-value" id="statRequested">0</strong>
+            <span class="stat-hint">Requests in review queue</span>
+          </article>
+          <article class="stat-card approved">
+            <span class="stat-label">Approved</span>
+            <strong class="stat-value" id="statApproved">0</strong>
+            <span class="stat-hint">Work permits authorized</span>
+          </article>
+          <article class="stat-card closed">
+            <span class="stat-label">Closed</span>
+            <strong class="stat-value" id="statClosed">0</strong>
+            <span class="stat-hint">Work completed and closed</span>
+          </article>
+        </div>
+      </section>
+
+      <section class="charts-section" aria-labelledby="chartsTitle">
+        <div class="stats-heading">
+          <div>
+            <p class="eyebrow">Workload trends</p>
+            <h2 id="chartsTitle">Permit activity</h2>
+          </div>
+          <p class="section-note">Uses planned work start date · Sunday–Saturday week and current month.</p>
+        </div>
+        <div class="charts-grid">
+          <article class="chart-card" aria-labelledby="weeklyChartTitle">
+            <h3 id="weeklyChartTitle">Permits by site · Weekly</h3>
+            <span id="weeklyChartPeriod" class="chart-period"></span>
+            <div id="weeklySiteChart" class="bar-chart" role="list" aria-label="Weekly permits by site"></div>
+          </article>
+          <article class="chart-card" aria-labelledby="monthlyChartTitle">
+            <h3 id="monthlyChartTitle">Permits by site · Monthly</h3>
+            <span id="monthlyChartPeriod" class="chart-period"></span>
+            <div id="monthlySiteChart" class="bar-chart" role="list" aria-label="Monthly permits by site"></div>
+          </article>
+          <article class="chart-card" aria-labelledby="requesterChartTitle">
+            <h3 id="requesterChartTitle">Permits by requester</h3>
+            <span class="chart-period">Distribution across all recorded permits</span>
+            <div class="donut-content">
+              <div id="requesterDonut" class="donut-chart" role="img" aria-label="Permit distribution by requester">
+                <div class="donut-center">
+                  <strong id="requesterDonutTotal">0</strong>
+                  <span>permits</span>
+                </div>
+              </div>
+              <div id="requesterLegend" class="donut-legend"></div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <div class="grid">
+        <div class="panel" id="historyPanel">
+          <div class="section-header">
+            <div>
+              <h2>Permits</h2>
+              <p class="section-note">Review permit status and take the next permitted action.</p>
+            </div>
+            <span id="permitCount" class="count-label">Loading permits</span>
+          </div>
+          <div class="filter-grid">
+            <div class="search-field">
+              <label for="permitSearch">Search permits</label>
+              <input id="permitSearch" type="search" placeholder="Reference, requester or work description" />
+            </div>
+            <div>
+              <label for="siteFilter">Site</label>
+              <select id="siteFilter"></select>
+            </div>
+            <div>
+              <label for="statusFilter">Status</label>
+              <select id="statusFilter">
+                <option value="">All statuses</option>
+                <option value="REQUESTED">Requested</option>
+                <option value="APPROVED">Approved</option>
+                <option value="CLOSED">Closed</option>
+              </select>
+            </div>
+            <div>
+              <label for="permitTypeFilter">Permit type</label>
+              <select id="permitTypeFilter"></select>
+            </div>
+            <div>
+              <label for="permitSort">Sort by</label>
+              <select id="permitSort">
+                <option value="newest">Newest first</option>
+                <option value="oldest">Oldest first</option>
+                <option value="reference">Permit reference</option>
+                <option value="valid_from">Work start date</option>
+              </select>
+            </div>
+            <div>
+              <label class="sr-only" for="refreshBtn">Refresh permit list</label>
+              <button id="refreshBtn" type="button">Refresh list</button>
+            </div>
+          </div>
+          <div id="permitList"></div>
+        </div>
+
+        <div class="panel">
+          <div class="section-header">
+            <div>
+              <h2>History</h2>
+              <p class="section-note">An auditable record of actions and workflow decisions.</p>
+            </div>
+            <span id="historyCount" class="count-label">Select a permit</span>
+          </div>
+          <div class="filter-grid">
+            <div>
+              <label for="historyActionFilter">Action</label>
+              <select id="historyActionFilter">
+                <option value="">All actions</option>
+                <option value="REQUEST">Request</option>
+                <option value="APPROVE">Approve</option>
+                <option value="CLOSE">Close</option>
+              </select>
+            </div>
+            <div>
+              <label for="historyResultFilter">Result</label>
+              <select id="historyResultFilter">
+                <option value="">All results</option>
+                <option value="success">Success</option>
+                <option value="refused">Refused</option>
+              </select>
+            </div>
+            <div>
+              <label for="historyUserFilter">User</label>
+              <select id="historyUserFilter"></select>
+            </div>
+            <div>
+              <label for="historySort">Sort by</label>
+              <select id="historySort">
+                <option value="newest">Newest first</option>
+                <option value="oldest">Oldest first</option>
+              </select>
+            </div>
+          </div>
+          <div id="historyBox" class="history-box">Select a permit to view its history.</div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const actorSelect = document.getElementById('actorSelect');
+      const requestUser = document.getElementById('requestUser');
+      const requestSite = document.getElementById('requestSite');
+      const requestType = document.getElementById('requestType');
+      const requestApprover = document.getElementById('requestApprover');
+      const approverNote = document.getElementById('approverNote');
+      const siteFilter = document.getElementById('siteFilter');
+      const statusFilter = document.getElementById('statusFilter');
+      const permitSearch = document.getElementById('permitSearch');
+      const permitTypeFilter = document.getElementById('permitTypeFilter');
+      const permitSort = document.getElementById('permitSort');
+      const permitList = document.getElementById('permitList');
+      const permitCount = document.getElementById('permitCount');
+      const historyBox = document.getElementById('historyBox');
+      const historyActionFilter = document.getElementById('historyActionFilter');
+      const historyResultFilter = document.getElementById('historyResultFilter');
+      const historyUserFilter = document.getElementById('historyUserFilter');
+      const historySort = document.getElementById('historySort');
+      const historyCount = document.getElementById('historyCount');
+      const requestError = document.getElementById('requestError');
+      const refreshBtn = document.getElementById('refreshBtn');
+
+      let users = [];
+      let sites = [];
+      let permitTypes = [];
+      let allPermits = [];
+      let currentPermits = [];
+      let currentHistory = [];
+      let selectedPermitId = null;
+      let historyLoadFailed = false;
+
+      function fillSelect(select, values, keyField, labelField, placeholder) {
+        select.innerHTML = '';
+        const empty = document.createElement('option');
+        empty.value = '';
+        empty.textContent = placeholder;
+        select.appendChild(empty);
+        values.forEach((item) => {
+          const option = document.createElement('option');
+          option.value = item[keyField];
+          option.textContent = item[labelField];
+          select.appendChild(option);
+        });
+      }
+
+      async function loadUsers() {
+        const response = await fetch('/api/users');
+        users = await response.json();
+        actorSelect.innerHTML = '';
+        users.forEach((user) => {
+          const option = document.createElement('option');
+          option.value = user.user_id;
+          option.textContent = `${user.display_name} · ${user.user_id}`;
+          actorSelect.appendChild(option);
+        });
+        const requesters = users.filter((user) =>
+          user.active === 'Y' && normalizeRoles(user.roles).includes('REQUESTER'));
+        fillSelect(requestUser, requesters, 'user_id', 'display_name', 'Choose requester');
+        fillSelect(historyUserFilter, users, 'user_id', 'display_name', 'All users');
+        if (users.length) {
+          actorSelect.value = 'U-004';
+          requestUser.value = 'U-001';
+        }
+        updateActorSummary();
+      }
+
+      async function loadReferenceData() {
+        const allSites = ['GC-01', 'GC-02', 'TF-01', 'WI-01', 'WS-01', 'BS-01'];
+        sites = allSites.map((siteId) => ({ site_id: siteId, site_name: siteId }));
+        fillSelect(siteFilter, sites, 'site_id', 'site_id', 'All sites');
+        fillSelect(requestSite, sites, 'site_id', 'site_id', 'Choose site');
+
+        permitTypes = [
+          { permit_type_id: 'HOT_WORK', name: 'Hot work' },
+          { permit_type_id: 'COLD_WORK', name: 'Cold work' },
+          { permit_type_id: 'CONFINED_SPACE', name: 'Confined space entry' },
+          { permit_type_id: 'ELECTRICAL_ISOLATION', name: 'Electrical isolation' },
+          { permit_type_id: 'WORK_AT_HEIGHT', name: 'Work at height' },
+          { permit_type_id: 'EXCAVATION', name: 'Excavation' },
+        ];
+        fillSelect(requestType, permitTypes, 'permit_type_id', 'permit_type_id', 'Choose permit type');
+        fillSelect(permitTypeFilter, permitTypes, 'permit_type_id', 'permit_type_id', 'All types');
+        requestType.value = 'HOT_WORK';
+        updateRequestSites();
+      }
+
+      function normalizeRoles(rawRoles) {
+        return String(rawRoles || '')
+          .split('|')
+          .map((role) => role.trim().toUpperCase().replace(/\s+/g, '_'))
+          .filter(Boolean);
+      }
+
+      function normalizeSites(rawSites) {
+        return String(rawSites || '')
+          .split('|')
+          .map((site) => site.trim().toUpperCase())
+          .filter(Boolean);
+      }
+
+      function userAssignedToSite(user, siteId) {
+        const assignedSites = normalizeSites(user?.sites);
+        return assignedSites.includes('ALL') || assignedSites.includes(siteId.toUpperCase());
+      }
+
+      function updateRequestSites() {
+        const requester = users.find((user) => user.user_id === requestUser.value);
+        const currentSite = requestSite.value;
+        const assignedSites = requester
+          ? sites.filter((site) => userAssignedToSite(requester, site.site_id))
+          : [];
+        fillSelect(
+          requestSite,
+          assignedSites,
+          'site_id',
+          'site_name',
+          requester ? 'No assigned sites' : 'Choose requester first'
+        );
+        requestSite.disabled = !requester || assignedSites.length === 0;
+        requestSite.value = assignedSites.some((site) => site.site_id === currentSite)
+          ? currentSite
+          : assignedSites[0]?.site_id || '';
+        updateApproverPreview();
+      }
+
+      function updateApproverPreview() {
+        const requester = users.find((user) => user.user_id === requestUser.value);
+        const siteId = requestSite.value;
+        if (!requester || !siteId) {
+          requestApprover.value = 'Select requester and site';
+          approverNote.textContent = 'Eligible active area authorities are based on the selected site.';
+          return;
+        }
+        const approvers = users.filter((user) =>
+          user.active === 'Y'
+          && user.user_id !== requester.user_id
+          && normalizeRoles(user.roles).includes('AREA_AUTHORITY')
+          && userAssignedToSite(user, siteId));
+        requestApprover.value = approvers.length
+          ? approvers.map((user) => `${user.display_name} (${user.user_id})`).join(', ')
+          : 'No active area authority assigned';
+        approverNote.textContent = approvers.length
+          ? 'Active area authorities assigned to this site, excluding the requester.'
+          : 'This request can be submitted, but approval will be blocked until an area authority is assigned.';
+      }
+
+      function updateActorSummary() {
+        const user = users.find((item) => item.user_id === actorSelect.value);
+        const actorName = document.getElementById('actorName');
+        const actorRole = document.getElementById('actorRole');
+        const actorAvatar = document.getElementById('actorAvatar');
+        if (!user) {
+          actorName.textContent = 'Choose a user';
+          actorRole.textContent = 'Acting user';
+          actorAvatar.textContent = '--';
+          return;
+        }
+        actorName.textContent = user.display_name;
+        actorRole.textContent = user.roles.split('|').join(' · ').replaceAll('_', ' ');
+        actorAvatar.textContent = user.display_name
+          .split(/\s+/)
+          .map((part) => part[0])
+          .slice(0, 2)
+          .join('')
+          .toUpperCase();
+      }
+
+      function getWorkStartDate(permit) {
+        const datePart = permit.valid_from?.slice(0, 10);
+        if (!datePart) return null;
+        const [year, month, day] = datePart.split('-').map(Number);
+        const date = new Date(year, month - 1, day);
+        return Number.isNaN(date.getTime()) ? null : date;
+      }
+
+      function renderSiteChart(elementId, permits, variant = '') {
+        const siteCounts = sites.map((site) => ({
+          siteId: site.site_id,
+          count: permits.filter((permit) => permit.site_id === site.site_id).length,
+        }));
+        const maxCount = Math.max(1, ...siteCounts.map((site) => site.count));
+        document.getElementById(elementId).innerHTML = siteCounts.map((site) => {
+          const width = site.count ? (site.count / maxCount) * 100 : 0;
+          return `
+            <div class="bar-row" role="listitem" aria-label="${escapeHtml(site.siteId)}: ${site.count} permits">
+              <span>${escapeHtml(site.siteId)}</span>
+              <div class="bar-track" aria-hidden="true">
+                <div class="bar-fill ${variant}" style="width: ${width}%"></div>
+              </div>
+              <span class="bar-value">${site.count}</span>
+            </div>
+          `;
+        }).join('');
+      }
+
+      function renderRequesterDonut() {
+        const colors = ['#167b6e', '#4d79a8', '#d39435', '#7b68a6', '#d26b55', '#59958b'];
+        const requesterCounts = new Map();
+        allPermits.forEach((permit) => {
+          requesterCounts.set(permit.requested_by, (requesterCounts.get(permit.requested_by) || 0) + 1);
+        });
+        const ranked = [...requesterCounts.entries()]
+          .map(([userId, count]) => ({
+            userId,
+            name: users.find((user) => user.user_id === userId)?.display_name || userId,
+            count,
+          }))
+          .sort((first, second) => second.count - first.count || first.name.localeCompare(second.name));
+        const visible = ranked.slice(0, 5);
+        if (ranked.length > 5) {
+          visible.push({
+            userId: 'OTHER',
+            name: 'Other requesters',
+            count: ranked.slice(5).reduce((total, item) => total + item.count, 0),
+          });
+        }
+
+        const total = allPermits.length;
+        const donut = document.getElementById('requesterDonut');
+        document.getElementById('requesterDonutTotal').textContent = total;
+        if (!total) {
+          donut.style.background = '#e9eef2';
+          donut.setAttribute('aria-label', 'No permits recorded');
+          document.getElementById('requesterLegend').innerHTML = '<span class="empty-state">No permit requests yet.</span>';
+          return;
+        }
+
+        let currentAngle = 0;
+        const gradients = visible.map((item, index) => {
+          const nextAngle = currentAngle + (item.count / total) * 360;
+          const segment = `${colors[index % colors.length]} ${currentAngle}deg ${nextAngle}deg`;
+          currentAngle = nextAngle;
+          item.color = colors[index % colors.length];
+          return segment;
+        });
+        donut.style.background = `conic-gradient(${gradients.join(', ')})`;
+        donut.setAttribute('aria-label', `${total} permits across ${ranked.length} requesters`);
+        document.getElementById('requesterLegend').innerHTML = visible.map((item) => `
+          <div class="legend-item" title="${escapeHtml(item.name)}: ${item.count}">
+            <span class="legend-dot" style="background: ${item.color}"></span>
+            <span class="legend-name">${escapeHtml(item.name)}</span>
+            <span class="legend-count">${item.count}</span>
+          </div>
+        `).join('');
+      }
+
+      function renderCharts() {
+        const now = new Date();
+        const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay());
+        const endOfWeek = new Date(startOfWeek.getFullYear(), startOfWeek.getMonth(), startOfWeek.getDate() + 7);
+        const weeklyPermits = allPermits.filter((permit) => {
+          const workDate = getWorkStartDate(permit);
+          return workDate && workDate >= startOfWeek && workDate < endOfWeek;
+        });
+        const monthlyPermits = allPermits.filter((permit) => {
+          const workDate = getWorkStartDate(permit);
+          return workDate && workDate.getFullYear() === now.getFullYear() && workDate.getMonth() === now.getMonth();
+        });
+        const lastDayOfWeek = new Date(endOfWeek.getFullYear(), endOfWeek.getMonth(), endOfWeek.getDate() - 1);
+        const dateOptions = { month: 'short', day: 'numeric' };
+        document.getElementById('weeklyChartPeriod').textContent =
+          `${startOfWeek.toLocaleDateString('en', dateOptions)} – ${lastDayOfWeek.toLocaleDateString('en', dateOptions)}`;
+        document.getElementById('monthlyChartPeriod').textContent =
+          now.toLocaleDateString('en', { month: 'long', year: 'numeric' });
+        renderSiteChart('weeklySiteChart', weeklyPermits);
+        renderSiteChart('monthlySiteChart', monthlyPermits, 'monthly');
+        renderRequesterDonut();
+      }
+
+      function escapeHtml(value) {
+        return String(value ?? '').replace(/[&<>"']/g, (character) => ({
+          '&': '&amp;',
+          '<': '&lt;',
+          '>': '&gt;',
+          '"': '&quot;',
+          "'": '&#39;',
+        })[character]);
+      }
+
+      async function fetchDashboardStats() {
+        const response = await fetch('/api/permits');
+        const data = await response.json();
+        allPermits = data.permits || [];
+        document.getElementById('statTotal').textContent = allPermits.length;
+        document.getElementById('statRequested').textContent = allPermits.filter((permit) => permit.status === 'REQUESTED').length;
+        document.getElementById('statApproved').textContent = allPermits.filter((permit) => permit.status === 'APPROVED').length;
+        document.getElementById('statClosed').textContent = allPermits.filter((permit) => permit.status === 'CLOSED').length;
+        renderCharts();
+      }
+
+      async function fetchPermits() {
+        const site = siteFilter.value || '';
+        const status = statusFilter.value || '';
+        const params = new URLSearchParams();
+        if (site) params.set('site', site);
+        if (status) params.set('status', status);
+        const response = await fetch(`/api/permits?${params.toString()}`);
+        const data = await response.json();
+        currentPermits = data.permits || [];
+        renderPermits();
+      }
+
+      async function refreshDashboard() {
+        await Promise.all([fetchDashboardStats(), fetchPermits()]);
+        if (selectedPermitId) await loadHistory(selectedPermitId);
+      }
+
+      function renderPermits() {
+        const searchTerm = permitSearch.value.trim().toLowerCase();
+        const permitType = permitTypeFilter.value;
+        const permits = currentPermits.filter((permit) => {
+          const requester = users.find((user) => user.user_id === permit.requested_by);
+          const searchable = [
+            permit.permit_ref,
+            permit.work_description,
+            permit.requested_by,
+            requester?.display_name,
+            permit.site_id,
+            permit.permit_type_id,
+          ].join(' ').toLowerCase();
+          return (!searchTerm || searchable.includes(searchTerm))
+            && (!permitType || permit.permit_type_id === permitType);
+        });
+
+        const sorters = {
+          newest: (first, second) => Date.parse(second.created_at) - Date.parse(first.created_at),
+          oldest: (first, second) => Date.parse(first.created_at) - Date.parse(second.created_at),
+          reference: (first, second) => first.permit_ref.localeCompare(second.permit_ref),
+          valid_from: (first, second) => Date.parse(first.valid_from) - Date.parse(second.valid_from),
+        };
+        permits.sort(sorters[permitSort.value] || sorters.newest);
+        permitCount.textContent = `Showing ${permits.length} of ${currentPermits.length}`;
+
+        if (!permits.length) {
+          permitList.innerHTML = '<p class="empty-state">No permits match the current filters.</p>';
+          return;
+        }
+
+        const rows = permits.map((permit) => `
+          <tr>
+            <td><strong>${escapeHtml(permit.permit_ref)}</strong><br>${escapeHtml(permit.work_description)}</td>
+            <td>${escapeHtml(permit.requested_by)}<br>${escapeHtml(permit.site_id)}</td>
+            <td>${escapeHtml(permit.permit_type_id)}</td>
+            <td><span class="status ${escapeHtml(permit.status)}">${escapeHtml(permit.status)}</span></td>
+            <td>
+              <div class="actions">
+                <button class="row-button" data-action="history" data-id="${escapeHtml(permit.permit_id)}">History</button>
+                <button class="row-button secondary" data-action="approve" data-id="${escapeHtml(permit.permit_id)}">Approve</button>
+                <button class="row-button danger" data-action="close" data-id="${escapeHtml(permit.permit_id)}">Close</button>
+              </div>
+            </td>
+          </tr>
+        `).join('');
+
+        permitList.innerHTML = `
+          <table>
+            <thead>
+              <tr>
+                <th>Permit</th>
+                <th>Requester / Site</th>
+                <th>Permit type</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        `;
+
+        permitList.querySelectorAll('button[data-action]').forEach((button) => {
+          button.addEventListener('click', async () => {
+            const id = Number(button.dataset.id);
+            const action = button.dataset.action;
+            if (action === 'history') {
+              selectedPermitId = id;
+              await loadHistory(id, true);
+              return;
+            }
+            const userId = actorSelect.value;
+            if (!userId) {
+              alert('Select a user to act as.');
+              return;
+            }
+            const endpoint = `/api/permits/${id}/${action}`;
+            const response = await fetch(endpoint, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ user_id: userId, comment: `${action} action initiated from the dashboard` })
+            });
+            const payload = await response.json();
+            if (!response.ok) {
+              alert(payload.error?.message || 'Action failed.');
+            }
+            await refreshDashboard();
+          });
+        });
+      }
+
+      async function loadHistory(permitId, scrollToHistory = false) {
+        selectedPermitId = permitId;
+        currentHistory = [];
+        historyLoadFailed = false;
+        historyCount.textContent = 'Loading history';
+        historyBox.textContent = `Loading history for permit ${permitId}…`;
+        try {
+          const response = await fetch(`/api/permits/${permitId}/history`);
+          const data = await response.json();
+          if (!response.ok) {
+            historyLoadFailed = true;
+            const message = data.detail?.message || data.error?.message || 'The permit history could not be loaded.';
+            historyCount.textContent = 'History unavailable';
+            historyBox.textContent = message;
+          } else {
+            currentHistory = data.history || [];
+            renderHistory();
+          }
+        } catch (error) {
+          historyLoadFailed = true;
+          historyCount.textContent = 'History unavailable';
+          historyBox.textContent = 'Could not load permit history. Check the connection and try again.';
+          console.error('Failed to load permit history', error);
+        }
+        if (scrollToHistory) {
+          document.getElementById('historyPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }
+
+      function renderHistory() {
+        if (historyLoadFailed) return;
+        if (selectedPermitId === null) {
+          historyCount.textContent = 'Select a permit';
+          return;
+        }
+        const action = historyActionFilter.value;
+        const result = historyResultFilter.value;
+        const userId = historyUserFilter.value;
+        const entries = currentHistory.filter((entry) =>
+          (!action || entry.action === action)
+          && (!result || (result === 'success' ? entry.success : !entry.success))
+          && (!userId || entry.user_id === userId));
+        entries.sort((first, second) => {
+          const difference = Date.parse(first.timestamp) - Date.parse(second.timestamp);
+          return historySort.value === 'oldest' ? difference : -difference;
+        });
+        historyCount.textContent = `${entries.length} of ${currentHistory.length} entries`;
+        const permit = allPermits.find((item) => item.permit_id === selectedPermitId);
+        const permitLabel = permit ? permit.permit_ref : `#${selectedPermitId}`;
+        if (!entries.length) {
+          historyBox.innerHTML = `<h3>Permit ${escapeHtml(permitLabel)}</h3><p class="empty-state">No history entries match these filters.</p>`;
+          return;
+        }
+
+        const rows = entries.map((entry) => `
+          <tr>
+            <td>${escapeHtml(entry.action)}</td>
+            <td>${escapeHtml(entry.from_state)}</td>
+            <td>${escapeHtml(entry.to_state)}</td>
+            <td>${escapeHtml(entry.user_id)}</td>
+            <td>${escapeHtml(entry.actor_role)}</td>
+            <td>${escapeHtml(entry.timestamp)}</td>
+            <td>${entry.success ? 'Success' : 'Refused'}</td>
+            <td>${escapeHtml(entry.check_id || '')}</td>
+            <td>${escapeHtml(entry.comment)}</td>
+          </tr>
+        `).join('');
+
+        historyBox.innerHTML = `
+          <h3>Permit ${escapeHtml(permitLabel)}</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Action</th>
+                <th>From</th>
+                <th>To</th>
+                <th>User</th>
+                <th>Role</th>
+                <th>Time</th>
+                <th>Result</th>
+                <th>Check</th>
+                <th>Comment</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        `;
+      }
+
+      document.getElementById('requestForm').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        requestError.classList.add('hidden');
+        requestError.textContent = '';
+
+        const payload = {
+          requested_by: requestUser.value,
+          site_id: requestSite.value,
+          permit_type_id: requestType.value,
+          work_description: document.getElementById('workDescription').value,
+          valid_from: document.getElementById('validFrom').value,
+          valid_to: document.getElementById('validTo').value,
+          hazards: document.getElementById('hazards').value,
+          controls: document.getElementById('controls').value,
+        };
+
+        const response = await fetch('/api/permits/request', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+          requestError.textContent = data.error?.message || 'Request failed.';
+          requestError.classList.remove('hidden');
+          return;
+        }
+
+        document.getElementById('requestForm').reset();
+        requestType.value = 'HOT_WORK';
+        requestUser.value = 'U-001';
+        await refreshDashboard();
+      });
+
+      actorSelect.addEventListener('change', updateActorSummary);
+      requestUser.addEventListener('change', updateRequestSites);
+      requestSite.addEventListener('change', updateApproverPreview);
+      siteFilter.addEventListener('change', fetchPermits);
+      statusFilter.addEventListener('change', fetchPermits);
+      permitSearch.addEventListener('input', renderPermits);
+      permitTypeFilter.addEventListener('change', renderPermits);
+      permitSort.addEventListener('change', renderPermits);
+      historyActionFilter.addEventListener('change', renderHistory);
+      historyResultFilter.addEventListener('change', renderHistory);
+      historyUserFilter.addEventListener('change', renderHistory);
+      historySort.addEventListener('change', renderHistory);
+      refreshBtn.addEventListener('click', refreshDashboard);
+
+      async function init() {
+        await loadUsers();
+        await loadReferenceData();
+        requestSite.value = 'GC-01';
+        siteFilter.value = '';
+        await Promise.all([fetchDashboardStats(), fetchPermits()]);
+        const firstPermit = allPermits[0];
+        if (firstPermit) await loadHistory(firstPermit.permit_id);
+      }
+
+      init();
+    </script>
+  </body>
+</html>

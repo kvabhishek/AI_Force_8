@@ -1,10 +1,8 @@
 # Project instructions
 
-<!-- Copilot adds this file to every request, so keep it short. Replace each TODO, then delete this comment. Guide: docs/copilot-customization.md -->
-
 - The brief is in `README.md` and the data dictionary in `data/README.md`.
-- Stack: TODO: language, framework, database (for example SQLite) and test runner.
-- Structure: TODO: where the back end, API, front end and tests live.
-- API conventions: TODO: paths, field names, the error format and status codes. The `api-endpoint` skill can suggest these.
-- Code conventions: TODO: naming, and how a rule returns its reason.
-- Tests: TODO: the command that runs them.
+- Stack: Python 3.12, FastAPI, SQLite, pytest.
+- Structure: `app/` contains the API and UI, `data/` contains the synthetic source files, `tests/` holds the workflow and endpoint checks, and the generated SQLite file lives at the repo root.
+- API conventions: endpoints are REST-style under `/api`, request and action payloads use JSON, success responses return `{ "success": true, "permit": {...} }`, and refusal responses return HTTP 400 with `{ "ok": false, "error": { "code": "CHECK_ID", "message": "..." } }`.
+- Code conventions: use snake_case for Python functions and variables, keep the workflow checks in a single service layer, and make every rule return a check ID and a human-readable explanation.
+- Tests: run `python -m pytest -q` from the repo root.
