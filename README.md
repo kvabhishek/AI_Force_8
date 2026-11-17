@@ -68,7 +68,7 @@ Decide these in your plan and cover them with tests:
 - **Invalid requests:** what happens to a request with an unknown permit type or an end time before its start time.
 - **Messy data:** the data has deliberate quality issues. See [Things to know](data/README.md#things-to-know).
 
-**What users see:** a list of permits, filtered by site and status, and the full history of each permit.
+**What users see:** a permit register filtered by site and status, a full permit-details view for reviewing the work description, schedule, hazards and controls before approval, and the full history of each permit.
 
 ### Deliverables
 
@@ -77,7 +77,7 @@ Every challenge has the same five deliverables, sized for a team of 5–8 in 1.5
 - [x] **Database:** load the users, roles, sites and permit types into SQLite, handle the issues in [Things to know](data/README.md#things-to-know), and store permits and their append-only history.
 - [x] **Back end:** apply the workflow and three checks to each permit action; refusals include their check ID and explanation.
 - [x] **API:** request, approve, close, list permits, and read permit history; refusals return the documented check and reason.
-- [x] **Front end:** request, approve, and close permits; filter the permit register, view history, show eligible site approvers, and present management charts through the API.
+- [x] **Front end:** request and close permits; review full permit details before approving; filter the permit register, view history, show eligible site approvers, and present management charts through the API.
 - [x] **Tests:** cover each check, transitions, read/action endpoints, multi-role users, and `ALL` site access.
 
 The [Copilot starter kit](#-your-copilot-starter-kit) has a skill for the database, `/data-import`, and one for the API, `/api-endpoint`.
@@ -89,7 +89,7 @@ Use any language, framework and database, as long as it runs locally from your R
 - **Team name:** AI Force 8
 - **Team members:** Abhishek, Ahmad Ali, Mina, Sadiq, Tamer, Henawy, Imran, Khalid.
 - **Stack:** Python 3.12, FastAPI, SQLite, pytest; the UI is server-rendered HTML with browser JavaScript.
-- **Dashboard:** requester-linked site choices, a read-only list of active eligible area authorities (excluding the requester), management totals, weekly/monthly permit counts by site, requester distribution, and searchable/sortable permit and history views.
+- **Dashboard:** requester-linked site choices, a read-only list of active eligible area authorities (excluding the requester), management totals, weekly/monthly permit counts by site, requester distribution, and searchable/sortable permit and history views. Permit approvals are initiated from a details view showing the full work scope, schedule, hazards, and controls.
 
 ### Run it
 
@@ -123,7 +123,7 @@ python -m pytest -q
 | Valid and invalid workflow transitions | `app/workflow.py` | `test_request_approve_and_close_permit` and `test_invalid_transition_is_refused_and_recorded_in_history` |
 | Append-only history | `app/db.py`, `app/workflow.py` | `test_permit_history_cannot_be_updated_or_deleted`; refused actions are checked by `test_self_approval_is_refused_and_recorded_in_history`. |
 | Audit identity and Kuwait timestamps | `app/workflow.py`, `app/db.py` | Lifecycle and read-endpoint tests verify the acting role, approver, and UTC+03:00 timestamps. |
-| Read and action API endpoints | `app/main.py` | `test_read_endpoints_return_users_permits_and_history` and the workflow request/approve/close tests. |
+| Read and action API endpoints | `app/main.py` | `test_read_endpoints_return_users_permits_and_history`, `test_get_permit_detail_contains_review_fields`, and the workflow request/approve/close tests. |
 | Invalid permit type and time range | `app/workflow.py` | `test_unknown_permit_type_and_invalid_date_are_rejected` |
 
 ### Copilot retrospective

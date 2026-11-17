@@ -307,6 +307,19 @@ def test_read_endpoints_return_users_permits_and_history():
     assert client.get("/api/permits/999/history").status_code == 404
 
 
+def test_get_permit_detail_contains_review_fields():
+    response = client.get("/api/permits/1")
+
+    assert response.status_code == 200
+    permit = response.json()
+    assert permit["permit_ref"] == "P-1001"
+    assert permit["work_description"]
+    assert permit["hazards"]
+    assert permit["controls"]
+    assert permit["valid_from"]
+    assert permit["valid_to"]
+
+
 def test_permit_history_cannot_be_updated_or_deleted():
     with connect_db() as conn:
         history_id = conn.execute("SELECT history_id FROM permit_history LIMIT 1").fetchone()[0]

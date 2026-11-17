@@ -504,6 +504,53 @@
       .history-box table {
         min-width: 900px;
       }
+      .detail-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+      }
+      .detail-field {
+        min-width: 0;
+        padding: 16px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: #fbfcfd;
+      }
+      .detail-field.full { grid-column: 1 / -1; }
+      .detail-field dt {
+        margin-bottom: 8px;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+      .detail-field dd {
+        margin: 0;
+        overflow-wrap: anywhere;
+        line-height: 1.55;
+        white-space: pre-wrap;
+      }
+      .detail-field dd small {
+        display: block;
+        margin-top: 4px;
+        color: var(--muted);
+      }
+      .detail-review-note {
+        margin-top: 18px;
+        padding: 13px 15px;
+        border-left: 4px solid #d39435;
+        border-radius: 8px;
+        background: #fff8eb;
+        color: #644715;
+        font-size: 13px;
+        line-height: 1.5;
+      }
+      .detail-actions {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 18px;
+      }
       .status {
         display: inline-block;
         padding: 5px 9px;
@@ -562,6 +609,8 @@
         .stat-card { min-height: 112px; padding: 16px; }
         .stats-heading { align-items: flex-start; flex-direction: column; gap: 6px; }
         .charts-grid { grid-template-columns: 1fr; }
+        .detail-grid { grid-template-columns: 1fr; }
+        .detail-field.full { grid-column: auto; }
         .donut-content { justify-content: flex-start; }
       }
       @media (max-width: 360px) {
@@ -598,6 +647,7 @@
       </div>
     </header>
     <div class="wrap">
+      <div id="dashboardPage">
       <header class="page-header">
         <div>
           <p class="eyebrow">Safety operations</p>
@@ -727,7 +777,7 @@
       </section>
 
       <div class="grid">
-        <div class="panel" id="historyPanel">
+        <div class="panel" id="permitPanel">
           <div class="section-header">
             <div>
               <h2>Permits</h2>
@@ -774,7 +824,7 @@
           <div id="permitList"></div>
         </div>
 
-        <div class="panel">
+        <div class="panel" id="historyPanel">
           <div class="section-header">
             <div>
               <h2>History</h2>
@@ -815,6 +865,18 @@
           <div id="historyBox" class="history-box">Select a permit to view its history.</div>
         </div>
       </div>
+      </div>
+      <section id="permitDetailPage" class="hidden" aria-labelledby="permitDetailTitle">
+        <header class="page-header">
+          <div>
+            <p class="eyebrow">Permit review</p>
+            <h1 id="permitDetailTitle">Permit details</h1>
+            <p class="subtitle">Review the work scope and safety controls before approving.</p>
+          </div>
+          <button id="backToPermits" type="button" class="secondary">Back to permits</button>
+        </header>
+        <div id="permitDetailContent" aria-live="polite"></div>
+      </section>
     </div>
 
     <script>
@@ -839,6 +901,10 @@
       const historyCount = document.getElementById('historyCount');
       const requestError = document.getElementById('requestError');
       const refreshBtn = document.getElementById('refreshBtn');
+      const dashboardPage = document.getElementById('dashboardPage');
+      const permitDetailPage = document.getElementById('permitDetailPage');
+      const permitDetailContent = document.getElementById('permitDetailContent');
+      const backToPermits = document.getElementById('backToPermits');
 
       let users = [];
       let sites = [];
@@ -1164,8 +1230,8 @@
             <td><span class="status ${escapeHtml(permit.status)}">${escapeHtml(permit.status)}</span></td>
             <td>
               <div class="actions">
+                <button class="row-button secondary" data-action="details" data-id="${escapeHtml(permit.permit_id)}">View details</button>
                 <button class="row-button" data-action="history" data-id="${escapeHtml(permit.permit_id)}">History</button>
-                <button class="row-button secondary" data-action="approve" data-id="${escapeHtml(permit.permit_id)}">Approve</button>
                 <button class="row-button danger" data-action="close" data-id="${escapeHtml(permit.permit_id)}">Close</button>
               </div>
             </td>
@@ -1191,29 +1257,121 @@
           button.addEventListener('click', async () => {
             const id = Number(button.dataset.id);
             const action = button.dataset.action;
+            if (action === 'details') {
+              await openPermitDetails(id);
+              return;
+            }
             if (action === 'history') {
               selectedPermitId = id;
               await loadHistory(id, true);
               return;
             }
-            const userId = actorSelect.value;
-            if (!userId) {
-              alert('Select a user to act as.');
-              return;
-            }
-            const endpoint = `/api/permits/${id}/${action}`;
-            const response = await fetch(endpoint, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ user_id: userId, comment: `${action} action initiated from the dashboard` })
-            });
-            const payload = await response.json();
-            if (!response.ok) {
-              alert(payload.error?.message || 'Action failed.');
-            }
-            await refreshDashboard();
+            await performPermitAction(id, action);
           });
         });
+      }
+
+      async function openPermitDetails(permitId) {
+        dashboardPage.classList.add('hidden');
+        permitDetailPage.classList.remove('hidden');
+        permitDetailContent.innerHTML = '<div class="panel" role="status">Loading permit details...</div>';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        try {
+          const response = await fetch(`/api/permits/${permitId}`);
+          const permit = await response.json();
+          if (!response.ok) {
+            throw new Error(permit.detail?.message || 'The permit details could not be loaded.');
+          }
+          renderPermitDetails(permit);
+        } catch (error) {
+          console.error('Failed to load permit details', error);
+          const message = error instanceof Error ? error.message : 'Could not load permit details. Check the connection and try again.';
+          permitDetailContent.innerHTML = `<div class="panel error" role="alert">${escapeHtml(message)}</div>`;
+        }
+      }
+
+      function renderPermitDetails(permit) {
+        const requester = users.find((user) => user.user_id === permit.requested_by);
+        const value = (text) => escapeHtml(text || 'Not provided');
+        const dateValue = (text) => escapeHtml(text ? text.replace('T', ' ') : 'Not provided');
+        const approveButton = permit.status === 'REQUESTED'
+          ? `<button id="approvePermitButton" type="button" data-id="${escapeHtml(permit.permit_id)}">Approve permit</button>`
+          : '';
+        permitDetailContent.innerHTML = `
+          <div class="panel">
+            <div class="section-header">
+              <div>
+                <p class="eyebrow">Review before approval</p>
+                <h2>${escapeHtml(permit.permit_ref)} · ${escapeHtml(permit.permit_type_id)}</h2>
+              </div>
+              <span class="status ${escapeHtml(permit.status)}">${escapeHtml(permit.status)}</span>
+            </div>
+            <dl class="detail-grid">
+              <div class="detail-field">
+                <dt>Requester</dt>
+                <dd>${escapeHtml(requester?.display_name || permit.requested_by)}<small>${escapeHtml(permit.requested_by)}</small></dd>
+              </div>
+              <div class="detail-field">
+                <dt>Site</dt>
+                <dd>${value(permit.site_id)}</dd>
+              </div>
+              <div class="detail-field">
+                <dt>Planned work start</dt>
+                <dd>${dateValue(permit.valid_from)}</dd>
+              </div>
+              <div class="detail-field">
+                <dt>Planned work end</dt>
+                <dd>${dateValue(permit.valid_to)}</dd>
+              </div>
+              <div class="detail-field full">
+                <dt>Work description</dt>
+                <dd>${value(permit.work_description)}</dd>
+              </div>
+              <div class="detail-field full">
+                <dt>Hazards</dt>
+                <dd>${value(permit.hazards)}</dd>
+              </div>
+              <div class="detail-field full">
+                <dt>Safety controls</dt>
+                <dd>${value(permit.controls)}</dd>
+              </div>
+            </dl>
+            ${permit.status === 'REQUESTED' ? '<p class="detail-review-note">Confirm the work description, hazards, controls, site, and planned work window before approving.</p>' : ''}
+            ${approveButton ? `<div class="detail-actions">${approveButton}</div>` : ''}
+          </div>
+        `;
+        const approvePermitButton = document.getElementById('approvePermitButton');
+        if (approvePermitButton) {
+          approvePermitButton.addEventListener('click', () =>
+            performPermitAction(Number(approvePermitButton.dataset.id), 'approve'));
+        }
+      }
+
+      async function performPermitAction(permitId, action) {
+        const userId = actorSelect.value;
+        if (!userId) {
+          alert('Select a user to act as.');
+          return;
+        }
+        try {
+          const response = await fetch(`/api/permits/${permitId}/${action}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: userId, comment: `${action} action initiated from the dashboard` })
+          });
+          const payload = await response.json();
+          if (!response.ok) {
+            alert(payload.error?.message || 'Action failed.');
+            return;
+          }
+          await refreshDashboard();
+          if (!permitDetailPage.classList.contains('hidden')) {
+            await openPermitDetails(permitId);
+          }
+        } catch (error) {
+          console.error(`Failed to ${action} permit`, error);
+          alert(`Could not ${action} the permit. Check the connection and try again.`);
+        }
       }
 
       async function loadHistory(permitId, scrollToHistory = false) {
@@ -1341,6 +1499,11 @@
       });
 
       actorSelect.addEventListener('change', updateActorSummary);
+      backToPermits.addEventListener('click', () => {
+        permitDetailPage.classList.add('hidden');
+        dashboardPage.classList.remove('hidden');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
       requestUser.addEventListener('change', updateRequestSites);
       requestSite.addEventListener('change', updateApproverPreview);
       siteFilter.addEventListener('change', fetchPermits);
