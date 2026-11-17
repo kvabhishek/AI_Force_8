@@ -1,0 +1,7 @@
+site_id,site_name,area,hazardous_zone
+GC-01,Gathering Centre 01,North Field,ZONE_1
+GC-02,Gathering Centre 02,West Field,ZONE_1
+BS-01,Booster Station 01,North Field,ZONE_2
+TF-01,Tank Farm 01,Export Terminal,ZONE_1
+WI-01,Water Injection Plant 01,West Field,ZONE_2
+WS-01,Workshop 01,Support Base,NON_HAZARDOUS

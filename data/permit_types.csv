@@ -1,0 +1,7 @@
+permit_type_id,name,risk_level,requires_hse_approval,requires_gas_test,max_validity_hours,description
+HOT_WORK,Hot work,HIGH,Y,Y,8,"Welding, cutting, grinding or any other work that can ignite flammable gas."
+COLD_WORK,Cold work,MEDIUM,N,N,12,"Maintenance with no ignition source, such as replacing a gasket or a gauge."
+CONFINED_SPACE,Confined space entry,HIGH,Y,Y,8,"Entry into a tank, vessel or pit where the air can be toxic, flammable or low in oxygen."
+ELECTRICAL_ISOLATION,Electrical isolation,HIGH,Y,N,12,Isolating and locking out electrical equipment so it can be worked on safely.
+WORK_AT_HEIGHT,Work at height,MEDIUM,N,N,12,"Work on scaffolds, platforms or lifts where a fall could cause injury."
+EXCAVATION,Excavation,MEDIUM,N,N,24,Digging or trenching near buried pipelines and cables.

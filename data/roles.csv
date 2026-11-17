@@ -1,0 +1,5 @@
+role_id,name,description
+REQUESTER,Requester,Work-party supervisor. Requests permits for their crew.
+AREA_AUTHORITY,Area authority,Controls a site. Approves and closes permits at their sites.
+HSE_OFFICER,HSE officer,Safety specialist who checks work across sites. Read-only access to permits and their history.
+VIEWER,Viewer,"Read-only access to permits and their history, for example for an audit."
